@@ -98,9 +98,17 @@ class PanelDialog(Adw.PreferencesDialog):
 
     def _toggle_extension(self, row, _pspec):
         method = 'EnableExtension' if row.get_active() else 'DisableExtension'
-        Gio.DBus.session.call('org.gnome.Shell.Extensions', '/org/gnome/Shell/Extensions',
-                              'org.gnome.Shell.Extensions', method, GLib.Variant('(s)', (EXT_UUID,)),
-                              None, Gio.DBusCallFlags.NONE, -1, None, None)
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+        def done(conn, res):
+            try:
+                conn.call_finish(res)
+            except GLib.Error as e:
+                row.set_active(not row.get_active())
+                print('No se pudo cambiar la extensión:', e.message, file=sys.stderr)
+        bus.call('org.gnome.Shell.Extensions', '/org/gnome/Shell/Extensions',
+                 'org.gnome.Shell.Extensions', method, GLib.Variant('(s)', (EXT_UUID,)),
+                 None, Gio.DBusCallFlags.NONE, -1, None, done)
 
     def _sync(self):
         items = self.settings.get_strv('panel-items')
