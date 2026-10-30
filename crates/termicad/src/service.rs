@@ -65,10 +65,7 @@ pub fn load_store(cfg: &Config) -> Store {
             Err(e) => log::error!("No se pudo leer {}: {e}. Uso los perfiles iniciales.", path.display()),
         }
     }
-    let store = serde_json::from_str::<Store>(termica_core::DEFAULT_PROFILES_JSON)
-        .expect("perfiles iniciales")
-        .validated()
-        .expect("perfiles iniciales válidos");
+    let store = termica_core::default_store();
     if let Err(e) = save_store(cfg, &store) {
         log::error!("No se pudo guardar {}: {e}", path.display());
     }
@@ -316,6 +313,28 @@ impl Termica {
         }
         emitter.profiles_changed().await?;
         Ok(())
+    }
+
+    /// Devuelve un perfil incluido a sus valores por defecto; con `id` vacío, los tres.
+    /// Si el perfil activo cambia, se vuelve a aplicar. Devuelve los avisos al aplicarlo.
+    async fn restore_defaults(
+        &self,
+        id: String,
+        #[zbus(header)] hdr: Header<'_>,
+        #[zbus(connection)] conn: &Connection,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+    ) -> Result<String, Error> {
+        authorize(conn, &hdr, &self.cfg).await?;
+        let touches_active = {
+            let mut s = self.state.lock().unwrap();
+            let restored = s.store.restore_defaults((!id.is_empty()).then_some(id.as_str())).map_err(Error::Invalid)?;
+            save_store(&self.cfg, &s.store).map_err(Error::Failed)?;
+            log::info!("Valores por defecto restaurados: {}", restored.join(", "));
+            restored.contains(&s.store.active)
+        };
+        let warnings = if touches_active { apply_active(&self.state, &self.cfg, &hw::ALL).await } else { vec![] };
+        emitter.profiles_changed().await?;
+        Ok(warnings.join("\n"))
     }
 
     /// Cambio rápido (`cooler_boost` o `turbo`) que dura hasta el próximo cambio de perfil.

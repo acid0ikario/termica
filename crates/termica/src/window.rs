@@ -5,9 +5,10 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use adw::prelude::*;
+use gtk::gio;
 use gtk::glib::{self, clone};
 use serde_json::Value;
-use termica_core::{Cpu, Curves, FanMode, Fans, Gpu, Profile, ShiftMode, Store};
+use termica_core::{Cpu, Curves, FanMode, Fans, Gpu, Profile, ShiftMode, Store, default_profile};
 
 use crate::client::Client;
 use crate::curve::CurveEditor;
@@ -109,6 +110,7 @@ pub struct Window {
     curve_group: adw::PreferencesGroup,
     curve: CurveEditor,
     delete_row: adw::ButtonRow,
+    restore_row: adw::ButtonRow,
 }
 
 impl Window {
@@ -132,6 +134,14 @@ impl Window {
         side_header.pack_start(&add_btn);
         let bar_btn =
             gtk::Button::builder().icon_name("termica-symbolic").tooltip_text("Qué mostrar en la barra superior").build();
+        let menu = gio::Menu::new();
+        menu.append(Some("Restaurar los 3 perfiles por defecto"), Some("win.restore-defaults"));
+        let menu_btn = gtk::MenuButton::builder()
+            .icon_name("open-menu-symbolic")
+            .tooltip_text("Menú")
+            .menu_model(&menu)
+            .build();
+        side_header.pack_end(&menu_btn);
         side_header.pack_end(&bar_btn);
 
         let listbox = gtk::ListBox::builder().css_classes(["navigation-sidebar"]).build();
@@ -276,6 +286,11 @@ impl Window {
         page.add(&curve_group);
 
         let g = adw::PreferencesGroup::new();
+        let restore_row = adw::ButtonRow::builder()
+            .title("Restaurar valores por defecto")
+            .start_icon_name("edit-undo-symbolic")
+            .build();
+        g.add(&restore_row);
         let dup_row = adw::ButtonRow::builder().title("Duplicar perfil").start_icon_name("edit-copy-symbolic").build();
         let delete_row = adw::ButtonRow::builder()
             .title("Eliminar perfil")
@@ -345,6 +360,7 @@ impl Window {
             curve_group,
             curve,
             delete_row,
+            restore_row,
         });
 
         // ---------- señales
@@ -381,6 +397,13 @@ impl Window {
         add_btn.connect_clicked(clone!(#[weak] w, move |_| w.new_profile(false)));
         dup_row.connect_activated(clone!(#[weak] w, move |_| w.new_profile(true)));
         w.delete_row.connect_activated(clone!(#[weak] w, move |_| w.confirm_delete()));
+        w.restore_row.connect_activated(clone!(#[weak] w, move |_| {
+            let id = w.model.borrow().selected.clone();
+            w.confirm_restore(id);
+        }));
+        let restore_all = gio::SimpleAction::new("restore-defaults", None);
+        restore_all.connect_activate(clone!(#[weak] w, move |_, _| w.confirm_restore(None)));
+        w.win.add_action(&restore_all);
         bar_btn.connect_clicked(clone!(#[weak] w, move |_| w.open_panel_dialog()));
 
         w.client.connect_signal(clone!(#[weak] w, move |name| {
@@ -536,6 +559,18 @@ impl Window {
             self.activate_btn.set_sensitive(!active);
         }
         self.delete_row.set_sensitive(!active && store.profiles.len() > 1);
+        let default = default_profile(sel);
+        self.restore_row.set_visible(default.is_some());
+        drop(m);
+        if let Some(d) = default {
+            let differs = self.collect() != d;
+            self.restore_row.set_sensitive(differs);
+            self.restore_row.set_tooltip_text(Some(if differs {
+                "Vuelve a los valores con los que viene este perfil"
+            } else {
+                "Ya tiene sus valores por defecto"
+            }));
+        }
         self.curve_group.set_visible(FAN_OPTIONS[self.fan_combo.selected() as usize].0 == FanMode::Advanced);
     }
 
@@ -716,6 +751,43 @@ impl Window {
                     let active = w.model.borrow().data.as_ref().map(|s| s.active.clone());
                     w.reload(active);
                     w.toast(&format!("«{name}» eliminado"));
+                }
+            }
+        });
+    }
+
+    /// Restaura un perfil incluido (o los tres con `None`) tras confirmar.
+    fn confirm_restore(self: &Rc<Self>, id: Option<String>) {
+        let (heading, body) = match &id {
+            Some(_) => (
+                format!("¿Restaurar «{}»?", self.name_row.text()),
+                "Vuelve a sus valores por defecto. Se pierden los cambios que le hiciste.".to_string(),
+            ),
+            None => (
+                "¿Restaurar los perfiles por defecto?".to_string(),
+                "Silencioso, Balanceado y Fábrica vuelven a sus valores por defecto (y reaparecen si los \
+                 borraste). Tus perfiles propios no cambian."
+                    .to_string(),
+            ),
+        };
+        let dialog = adw::AlertDialog::new(Some(&heading), Some(&body));
+        dialog.add_response("cancel", "Cancelar");
+        dialog.add_response("restore", "Restaurar");
+        dialog.set_response_appearance("restore", adw::ResponseAppearance::Destructive);
+        let w = self.clone();
+        glib::spawn_future_local(async move {
+            if dialog.choose_future(Some(&w.win)).await != "restore" {
+                return;
+            }
+            match w.client.call("RestoreDefaults", Some(id.as_deref().unwrap_or(""))).await {
+                Err(e) => w.toast(&e),
+                Ok(warnings) => {
+                    w.dirty.set(false);
+                    let select = w.model.borrow().selected.clone();
+                    w.reload(select);
+                    let msg = if id.is_some() { "Valores por defecto restaurados" } else { "Perfiles restaurados" };
+                    let warnings = warnings.unwrap_or_default();
+                    w.toast(&if warnings.is_empty() { msg.to_string() } else { format!("{msg}. Avisos: {warnings}") });
                 }
             }
         });

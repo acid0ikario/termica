@@ -29,6 +29,10 @@ const CSS: &str = "
 fn main() -> glib::ExitCode {
     let open_bar = std::env::args().any(|a| a == "--barra");
     let app = adw::Application::builder().application_id(APP_ID).build();
+    if std::env::var_os("TERMICA_SCREENSHOT").is_some() {
+        // la captura de desarrollo no debe cederle el paso a una ventana ya abierta
+        app.set_flags(gio::ApplicationFlags::NON_UNIQUE);
+    }
 
     app.connect_startup(|app| {
         let display = gdk::Display::default().expect("sin pantalla");

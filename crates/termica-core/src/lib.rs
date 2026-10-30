@@ -271,6 +271,40 @@ pub fn slugify(text: &str) -> String {
 /// Perfiles iniciales (los mismos de `data/default-profiles.json`).
 pub const DEFAULT_PROFILES_JSON: &str = include_str!("../../../data/default-profiles.json");
 
+/// Los perfiles que trae Térmica (Silencioso, Balanceado y Fábrica) con sus valores por defecto.
+pub fn default_store() -> Store {
+    serde_json::from_str::<Store>(DEFAULT_PROFILES_JSON)
+        .expect("perfiles iniciales")
+        .validated()
+        .expect("perfiles iniciales válidos")
+}
+
+/// Valores por defecto de un perfil incluido, o `None` si lo creó el usuario.
+pub fn default_profile(id: &str) -> Option<Profile> {
+    default_store().get(id).cloned()
+}
+
+impl Store {
+    /// Devuelve los perfiles incluidos a sus valores por defecto (`None` = los tres).
+    /// Los perfiles creados por el usuario no se tocan; un perfil incluido que se borró vuelve a aparecer.
+    pub fn restore_defaults(&mut self, id: Option<&str>) -> Result<Vec<String>, String> {
+        let defaults = default_store();
+        let targets: Vec<&Profile> = match id {
+            Some(id) => vec![defaults.get(id).ok_or("Ese perfil no tiene valores por defecto")?],
+            None => defaults.profiles.iter().collect(),
+        };
+        let mut restored = vec![];
+        for d in targets {
+            match self.profiles.iter_mut().find(|p| p.id == d.id) {
+                Some(p) => *p = d.clone(),
+                None => self.profiles.push(d.clone()),
+            }
+            restored.push(d.id.clone());
+        }
+        Ok(restored)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -308,6 +342,26 @@ mod tests {
         assert_eq!(slugify("Fábrica"), "fabrica");
         assert_eq!(slugify("Render Blender!"), "render-blender");
         assert_eq!(store().new_id("Silencioso"), "silencioso-2");
+    }
+
+    #[test]
+    fn restore_defaults() {
+        let mut s = store();
+        s.profiles[0].gpu.core_max = Some(1900);
+        s.profiles[0].name = "Otro nombre".into();
+        s.profiles.retain(|p| p.id != "fabrica");
+        let mut mine = s.profiles[1].clone();
+        mine.id = "mio".into();
+        s.profiles.push(mine.clone());
+
+        assert_eq!(s.restore_defaults(Some("silencioso")).unwrap(), ["silencioso"]);
+        assert_eq!(s.get("silencioso"), default_profile("silencioso").as_ref());
+        assert!(s.get("fabrica").is_none());
+
+        s.restore_defaults(None).unwrap();
+        assert!(s.get("fabrica").is_some(), "un perfil incluido borrado vuelve");
+        assert_eq!(s.get("mio"), Some(&mine), "los perfiles propios no se tocan");
+        assert!(s.restore_defaults(Some("mio")).is_err());
     }
 
     #[test]
