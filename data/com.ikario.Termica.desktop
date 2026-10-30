@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Térmica
+GenericName=Perfiles térmicos
+Comment=Perfiles de GPU, CPU y ventiladores
+Exec=termica
+Icon=com.ikario.Termica
+Terminal=false
+Categories=System;Settings;HardwareSettings;
+Keywords=ventilador;fan;gpu;nvidia;temperatura;perfil;thermal;
+StartupNotify=true

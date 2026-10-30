@@ -1,0 +1,10 @@
+{
+  "uuid": "termica@ikario",
+  "name": "Térmica",
+  "description": "Icono en la barra con temperaturas, ventiladores, perfiles y Cooler/Turbo Boost.",
+  "shell-version": [
+    "51"
+  ],
+  "url": "https://github.com/acid0ikario/termica",
+  "settings-schema": "org.gnome.shell.extensions.termica"
+}

@@ -1,0 +1,26 @@
+.termica-panel-label { padding-left: 1px; font-feature-settings: "tnum"; }
+.termica-hot { color: #f8c84a; }
+.termica-burn { color: #ff7a63; }
+
+.termica-header { padding: 6px 14px 2px 14px; }
+.termica-title { font-weight: 800; font-size: 11.5pt; }
+.termica-subtitle { font-size: 9pt; color: rgba(255,255,255,0.6); }
+
+.termica-grid { spacing: 8px; padding: 4px 12px 8px 12px; }
+.termica-row { spacing: 8px; }
+.termica-card {
+  background-color: rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 9px 12px;
+  spacing: 1px;
+  min-width: 150px;
+}
+.termica-card-label { font-size: 8.5pt; font-weight: bold; color: rgba(255,255,255,0.55); }
+.termica-value { font-size: 16pt; font-weight: 800; font-feature-settings: "tnum"; }
+.termica-caption { font-size: 8.5pt; color: rgba(255,255,255,0.6); font-feature-settings: "tnum"; }
+.termica-bar { height: 4px; border-radius: 2px; background-color: rgba(255,255,255,0.12); margin-top: 5px; }
+.termica-bar-fill { height: 4px; border-radius: 2px; background-color: -st-accent-color; }
+.termica-section-label { font-size: 9pt; font-weight: bold; color: rgba(255,255,255,0.55); padding: 4px 14px 0 14px; }
+.termica-panel { spacing: 10px; }
+.termica-panel-item { spacing: 3px; }
+.termica-panel-short { font-size: 8pt; color: rgba(255,255,255,0.7); padding-left: 1px; }

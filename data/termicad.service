@@ -1,0 +1,13 @@
+[Unit]
+Description=Térmica: perfiles de GPU, CPU y ventiladores
+After=systemd-modules-load.service nvidia-persistenced.service dbus.service
+
+[Service]
+Type=dbus
+BusName=com.ikario.Termica1
+ExecStart=/usr/bin/python3 /usr/local/lib/termica/termicad.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

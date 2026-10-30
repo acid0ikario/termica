@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.termica" path="/org/gnome/shell/extensions/termica/">
+    <key name="panel-items" type="as">
+      <default>['cpu-temp', 'gpu-temp']</default>
+      <summary>Datos que se muestran en la barra superior</summary>
+    </key>
+    <key name="show-labels" type="b">
+      <default>false</default>
+      <summary>Mostrar el nombre corto junto a cada valor</summary>
+    </key>
+    <key name="color-temps" type="b">
+      <default>true</default>
+      <summary>Colorear temperaturas altas</summary>
+    </key>
+    <key name="interval" type="i">
+      <range min="1" max="10"/>
+      <default>3</default>
+      <summary>Segundos entre actualizaciones de la barra</summary>
+    </key>
+  </schema>
+</schemalist>
