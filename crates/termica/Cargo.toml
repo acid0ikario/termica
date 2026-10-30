@@ -1,0 +1,11 @@
+[package]
+name = "termica"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adw = { version = "0.9.2", package = "libadwaita", features = ["v1_10"] }
+gtk = { version = "0.11.5", package = "gtk4", features = ["v4_24"] }
+pangocairo = "0.22.9"
+serde_json = "1.0.154"
+termica-core = { path = "../termica-core" }
