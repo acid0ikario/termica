@@ -141,6 +141,7 @@ API de D-Bus (`com.ikario.Termica1` en `/com/ikario/Termica1`):
 | `Activate(s id) → s` | Activa un perfil; devuelve avisos si alguna parte falló |
 | `SaveProfile(s json) → s` | Crea o reemplaza un perfil |
 | `DeleteProfile(s id)` | Borra un perfil (no el activo) |
+| `RestoreDefaults(s id)` | Devuelve un perfil incluido a sus valores por defecto; con `""`, los tres |
 | `SetQuick(s clave, b valor)` | Cambio rápido de `cooler_boost` o `turbo` |
 
 Señales: `ActiveChanged(s)`, `ProfilesChanged()`, `QuickChanged(s, b)`.
