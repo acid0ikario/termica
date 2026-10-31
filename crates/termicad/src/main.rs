@@ -14,8 +14,17 @@ use futures_util::StreamExt;
 use service::{Config, State, Termica, apply_active, load_store};
 use termica_core::{BUS_NAME, OBJECT_PATH};
 
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // proceso hijo para usar NVML (ver hw::nvml_main)
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("--nvml") {
+        std::process::exit(hw::nvml_main(&args[1..]));
+    }
+    run()
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp(None)
         .format_target(false)

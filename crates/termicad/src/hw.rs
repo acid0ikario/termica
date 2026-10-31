@@ -139,9 +139,13 @@ fn apply_cpu(p: &Profile) -> Result<(), String> {
 }
 
 fn apply_gpu(p: &Profile) -> Result<(), String> {
+    nvml_child("apply", Some(&p.gpu)).map(|_| ())
+}
+
+fn apply_gpu_direct(gpu: &termica_core::Gpu) -> Result<(), String> {
     let nvml = Nvml::init().map_err(|e| format!("NVML: {e}"))?;
     let mut dev = nvml.device_by_index(0).map_err(|e| format!("NVML: {e}"))?;
-    match p.gpu.core_max {
+    match gpu.core_max {
         Some(max) => dev.set_gpu_locked_clocks(GpuLockedClocksSetting::Numeric {
             min_clock_mhz: GPU_CORE_MIN,
             max_clock_mhz: max,
@@ -149,7 +153,7 @@ fn apply_gpu(p: &Profile) -> Result<(), String> {
         None => dev.reset_gpu_locked_clocks(),
     }
     .map_err(|e| format!("núcleo: {e}"))?;
-    match p.gpu.mem_max {
+    match gpu.mem_max {
         Some(max) => dev.set_mem_locked_clocks(GPU_MEM_MIN, max),
         None => dev.reset_mem_locked_clocks(),
     }
@@ -187,14 +191,63 @@ pub fn apply_profile(p: &Profile, parts: &[Part], allow_unknown: &Path, dev: boo
     warnings
 }
 
-// ------------------------------------------------------------------ lectura NVIDIA
+// ------------------------------------------------------------------ NVIDIA (NVML)
+//
+// Con el driver 580, cada nvmlInit deja un eventfd abierto que nvmlShutdown no cierra. Como NVML se
+// abre y se cierra en cada lectura (para no impedir que la GPU duerma), el servicio llegaba al límite
+// de archivos abiertos en unas horas y dejaba de leer todo. Por eso NVML se usa en un proceso hijo de
+// corta vida (`termicad --nvml <orden>`): al terminar, el sistema cierra lo que haya quedado abierto.
+
+fn nvml_child(cmd: &str, gpu: Option<&termica_core::Gpu>) -> Result<String, String> {
+    let mut c = Command::new("/proc/self/exe");
+    c.args(["--nvml", cmd]);
+    if let Some(gpu) = gpu {
+        c.arg(serde_json::to_string(gpu).unwrap());
+    }
+    let out = c.output().map_err(|e| format!("NVML: {e}"))?;
+    if out.status.success() {
+        Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
+/// Punto de entrada del proceso hijo. Devuelve el código de salida.
+pub fn nvml_main(args: &[String]) -> i32 {
+    let gpu = || -> Option<termica_core::Gpu> { serde_json::from_str(args.get(1)?).ok() };
+    match args.first().map(String::as_str) {
+        Some("status") => match nvidia_status_direct() {
+            Some(m) => {
+                println!("{}", Value::Object(m));
+                0
+            }
+            None => 1,
+        },
+        Some("over") => match gpu() {
+            Some(g) if gpu_over_limit_direct(&g) => 0,
+            _ => 1,
+        },
+        Some("apply") => match gpu().ok_or_else(|| "límites inválidos".to_string()).and_then(|g| apply_gpu_direct(&g)) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("{e}");
+                1
+            }
+        },
+        _ => 2,
+    }
+}
 
 /// ¿La GPU va más rápido que el límite del perfil? (señal de que el driver lo olvidó)
 pub fn gpu_over_limit(gpu: &termica_core::Gpu) -> bool {
-    const MARGIN: u32 = 30;
     if gpu.core_max.is_none() && gpu.mem_max.is_none() {
         return false;
     }
+    nvml_child("over", Some(gpu)).is_ok()
+}
+
+fn gpu_over_limit_direct(gpu: &termica_core::Gpu) -> bool {
+    const MARGIN: u32 = 30;
     let Ok(nvml) = Nvml::init() else { return false };
     let Ok(dev) = nvml.device_by_index(0) else { return false };
     let over = |clock, limit: Option<u32>| match (limit, dev.clock_info(clock)) {
@@ -215,6 +268,13 @@ fn pstate_name(state: nvml_wrapper::enum_wrappers::device::PerformanceState) -> 
 
 /// Datos de la NVIDIA vía NVML. Se abre y se cierra en cada lectura para no impedir que la GPU duerma.
 pub fn nvidia_status() -> Option<Map<String, Value>> {
+    match serde_json::from_str(&nvml_child("status", None).ok()?).ok()? {
+        Value::Object(m) => Some(m),
+        _ => None,
+    }
+}
+
+fn nvidia_status_direct() -> Option<Map<String, Value>> {
     let nvml = Nvml::init().ok()?;
     let dev = nvml.device_by_index(0).ok()?;
     let mut m = Map::new();
