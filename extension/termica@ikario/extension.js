@@ -152,12 +152,34 @@ class TermicaButton extends PanelMenu.Button {
         this._refreshPanel(true);
     }
 
+    // En GNOME 51 setToggleState() emite 'toggled' como un clic: con esta bandera los
+    // manejadores ignoran los cambios hechos desde el código (si no, se forma un bucle).
+    _setToggleSilently(item, state) {
+        if (item.state === state)
+            return;
+        this._syncing = true;
+        try {
+            item.setToggleState(state);
+        } finally {
+            this._syncing = false;
+        }
+    }
+
+    // Notificación de error, como máximo una cada 10 s
+    _notifyError(text) {
+        const now = GLib.get_monotonic_time();
+        if (this._lastErrorAt && now - this._lastErrorAt < 10_000_000)
+            return;
+        this._lastErrorAt = now;
+        Main.notify('Térmica', text);
+    }
+
     _syncMetricSwitches() {
         if (!this._metricSwitches)
             return;
         const ids = this._settings.get_strv('panel-items');
         for (const [id, item] of this._metricSwitches)
-            item.setToggleState(ids.includes(id));
+            this._setToggleSilently(item, ids.includes(id));
     }
 
     _startPanelTimer() {
@@ -208,9 +230,15 @@ class TermicaButton extends PanelMenu.Button {
         // interruptores rápidos
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         this._boost = new PopupMenu.PopupSwitchMenuItem('Cooler Boost', false);
-        this._boost.connect('toggled', (_i, state) => this._setQuick('cooler_boost', state, this._boost));
+        this._boost.connect('toggled', (_i, state) => {
+            if (!this._syncing)
+                this._setQuick('cooler_boost', state, this._boost);
+        });
         this._turbo = new PopupMenu.PopupSwitchMenuItem('Turbo Boost del CPU', true);
-        this._turbo.connect('toggled', (_i, state) => this._setQuick('turbo', state, this._turbo));
+        this._turbo.connect('toggled', (_i, state) => {
+            if (!this._syncing)
+                this._setQuick('turbo', state, this._turbo);
+        });
         this.menu.addMenuItem(this._boost);
         this.menu.addMenuItem(this._turbo);
 
@@ -222,6 +250,8 @@ class TermicaButton extends PanelMenu.Button {
             const item = new PopupMenu.PopupSwitchMenuItem(m.title, false);
             item.insert_child_at_index(new St.Icon({gicon: this._icon(m.icon), style_class: 'popup-menu-icon'}), 1);
             item.connect('toggled', (_i, state) => {
+                if (this._syncing)
+                    return;
                 const set = new Set(this._settings.get_strv('panel-items'));
                 if (state)
                     set.add(m.id);
@@ -314,17 +344,25 @@ class TermicaButton extends PanelMenu.Button {
     _activate(p) {
         this._call('Activate', new GLib.Variant('(s)', [p.id]), (warnings, err) => {
             if (err)
-                Main.notify('Térmica', `No se pudo activar «${p.name}»: ${err}`);
+                this._notifyError(`No se pudo activar «${p.name}»: ${err}`);
             else if (warnings)
                 Main.notify('Térmica', `«${p.name}» activado con avisos: ${warnings}`);
         });
     }
 
     _setQuick(key, state, item) {
+        this._busy ??= new Set();
+        if (this._busy.has(key)) {
+            // ya hay una orden en curso para este interruptor: se descarta el clic
+            this._setToggleSilently(item, !state);
+            return;
+        }
+        this._busy.add(key);
         this._call('SetQuick', new GLib.Variant('(sb)', [key, state]), (_r, err) => {
+            this._busy.delete(key);
             if (err) {
-                item.setToggleState(!state);
-                Main.notify('Térmica', err);
+                this._setToggleSilently(item, !state);
+                this._notifyError(err);
             }
         });
     }
@@ -405,8 +443,10 @@ class TermicaButton extends PanelMenu.Button {
             const mode = {auto: 'automático', advanced: 'curva propia', silent: 'silencioso'}[s.fan_mode] ??
                 s.fan_mode;
             this._subtitle.text = `Ventiladores en ${mode}${s.cooler_boost ? ' · Cooler Boost' : ''}`;
-            this._boost.setToggleState(!!s.cooler_boost);
-            this._turbo.setToggleState(!!s.turbo);
+            if (!this._busy?.has('cooler_boost'))
+                this._setToggleSilently(this._boost, !!s.cooler_boost);
+            if (!this._busy?.has('turbo'))
+                this._setToggleSilently(this._turbo, !!s.turbo);
         });
     }
 

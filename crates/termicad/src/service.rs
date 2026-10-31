@@ -119,6 +119,14 @@ async fn authorize(conn: &Connection, hdr: &Header<'_>, cfg: &Config) -> Result<
     if cfg.dev {
         return Ok(());
     }
+    check_authorization(conn, hdr).await.inspect_err(|e| {
+        if !matches!(e, Error::NotAuthorized(_)) {
+            log::warn!("Error al consultar polkit: {e:?}");
+        }
+    })
+}
+
+async fn check_authorization(conn: &Connection, hdr: &Header<'_>) -> Result<(), Error> {
     let sender = hdr.sender().ok_or_else(|| Error::NotAuthorized("Remitente desconocido".into()))?.to_string();
     let authority = zbus::Proxy::new(
         conn,
@@ -134,7 +142,12 @@ async fn authorize(conn: &Connection, hdr: &Header<'_>, cfg: &Config) -> Result<
     let ((authorized, _challenge, _info),): ((bool, bool, HashMap<String, String>),) = authority
         .call("CheckAuthorization", &(("system-bus-name", subject_details), POLKIT_ACTION, details, flags, ""))
         .await?;
-    if authorized { Ok(()) } else { Err(Error::NotAuthorized("No tienes permiso para cambiar perfiles".into())) }
+    if authorized {
+        Ok(())
+    } else {
+        log::warn!("polkit negó el permiso a {sender}");
+        Err(Error::NotAuthorized("No tienes permiso para cambiar perfiles".into()))
+    }
 }
 
 // ------------------------------------------------------------------ interfaz
@@ -353,7 +366,10 @@ impl Termica {
         if self.cfg.dev {
             log::info!("[dev] {key} = {value}");
         } else {
-            apply_quick(&key, value).map_err(Error::Failed)?;
+            apply_quick(&key, value).map_err(|e| {
+                log::warn!("No se pudo cambiar {key} a {value}: {e}");
+                Error::Failed(e)
+            })?;
         }
         self.state.lock().unwrap().overrides.insert(key.clone(), value);
         emitter.quick_changed(&key, value).await?;
