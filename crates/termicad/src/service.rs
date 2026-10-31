@@ -64,12 +64,12 @@ pub fn load_store(cfg: &Config) -> Store {
     if let Ok(text) = std::fs::read_to_string(&path) {
         match serde_json::from_str::<Store>(&text).map_err(|e| e.to_string()).and_then(Store::validated) {
             Ok(store) => return store,
-            Err(e) => log::error!("No se pudo leer {}: {e}. Uso los perfiles iniciales.", path.display()),
+            Err(e) => log::error!("Could not read {}: {e}. Using default profiles.", path.display()),
         }
     }
     let store = termica_core::default_store();
     if let Err(e) = save_store(cfg, &store) {
-        log::error!("No se pudo guardar {}: {e}", path.display());
+        log::error!("Could not save {}: {e}", path.display());
     }
     store
 }
@@ -111,7 +111,7 @@ fn apply_quick(key: &str, value: bool) -> Result<(), String> {
     match key {
         "cooler_boost" => hw::set_cooler_boost(value),
         "turbo" => hw::set_turbo(value),
-        _ => Err("Ajuste desconocido".into()),
+        _ => Err("Unknown setting".into()),
     }
 }
 
@@ -123,13 +123,13 @@ async fn authorize(conn: &Connection, hdr: &Header<'_>, cfg: &Config) -> Result<
     }
     check_authorization(conn, hdr).await.inspect_err(|e| {
         if !matches!(e, Error::NotAuthorized(_)) {
-            log::warn!("Error al consultar polkit: {e:?}");
+            log::warn!("Error querying polkit: {e:?}");
         }
     })
 }
 
 async fn check_authorization(conn: &Connection, hdr: &Header<'_>) -> Result<(), Error> {
-    let sender = hdr.sender().ok_or_else(|| Error::NotAuthorized("Remitente desconocido".into()))?.to_string();
+    let sender = hdr.sender().ok_or_else(|| Error::NotAuthorized("Unknown sender".into()))?.to_string();
     let authority = zbus::Proxy::new(
         conn,
         "org.freedesktop.PolicyKit1",
@@ -147,8 +147,8 @@ async fn check_authorization(conn: &Connection, hdr: &Header<'_>) -> Result<(), 
     if authorized {
         Ok(())
     } else {
-        log::warn!("polkit negó el permiso a {sender}");
-        Err(Error::NotAuthorized("No tienes permiso para cambiar perfiles".into()))
+        log::warn!("polkit denied permission to {sender}");
+        Err(Error::NotAuthorized("You are not authorized to change profiles".into()))
     }
 }
 
@@ -269,7 +269,7 @@ impl Termica {
         {
             let mut s = self.state.lock().unwrap();
             if s.store.get(&id).is_none() {
-                return Err(Error::Invalid("Ese perfil no existe".into()));
+                return Err(Error::Invalid("This profile does not exist".into()));
             }
             s.store.active = id.clone();
             s.overrides.clear();
@@ -289,7 +289,7 @@ impl Termica {
     ) -> Result<String, Error> {
         authorize(conn, &hdr, &self.cfg).await?;
         let incoming: Profile =
-            serde_json::from_str(&json).map_err(|e| Error::Invalid(format!("Perfil inválido: {e}")))?;
+            serde_json::from_str(&json).map_err(|e| Error::Invalid(format!("Invalid profile: {e}")))?;
         let mut p = incoming.validated().map_err(Error::Invalid)?;
         let is_active = {
             let mut s = self.state.lock().unwrap();
@@ -319,13 +319,13 @@ impl Termica {
         {
             let mut s = self.state.lock().unwrap();
             if s.store.get(&id).is_none() {
-                return Err(Error::Invalid("Ese perfil no existe".into()));
+                return Err(Error::Invalid("This profile does not exist".into()));
             }
             if s.store.active == id {
-                return Err(Error::Invalid("No se puede borrar el perfil activo".into()));
+                return Err(Error::Invalid("Cannot delete the active profile".into()));
             }
             if s.store.profiles.len() <= 1 {
-                return Err(Error::Invalid("Debe quedar al menos un perfil".into()));
+                return Err(Error::Invalid("At least one profile must remain".into()));
             }
             s.store.profiles.retain(|p| p.id != id);
             save_store(&self.cfg, &s.store).map_err(Error::Failed)?;
@@ -348,7 +348,7 @@ impl Termica {
             let mut s = self.state.lock().unwrap();
             let restored = s.store.restore_defaults((!id.is_empty()).then_some(id.as_str())).map_err(Error::Invalid)?;
             save_store(&self.cfg, &s.store).map_err(Error::Failed)?;
-            log::info!("Valores por defecto restaurados: {}", restored.join(", "));
+            log::info!("Default settings restored: {}", restored.join(", "));
             restored.contains(&s.store.active)
         };
         let warnings = if touches_active { apply_active(&self.state, &self.cfg, &hw::ALL).await } else { vec![] };
@@ -367,13 +367,13 @@ impl Termica {
     ) -> Result<(), Error> {
         authorize(conn, &hdr, &self.cfg).await?;
         if key != "cooler_boost" && key != "turbo" {
-            return Err(Error::Invalid("Ajuste desconocido".into()));
+            return Err(Error::Invalid("Unknown setting".into()));
         }
         if self.cfg.dev {
             log::info!("[dev] {key} = {value}");
         } else {
             apply_quick(&key, value).map_err(|e| {
-                log::warn!("No se pudo cambiar {key} a {value}: {e}");
+                log::warn!("Could not set {key} to {value}: {e}");
                 Error::Failed(e)
             })?;
         }

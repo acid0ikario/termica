@@ -285,7 +285,7 @@ impl CurveEditor {
             cr.line_to(x, g.y1);
             let _ = cr.stroke();
             cr.set_dash(&[], 0.0);
-            self.text(cr, &format!("Ahora {cur}°"), ((x + 6.0).min(g.x1 - 70.0), g.y0 + 8.0), (&fg, 0.8), 0.0);
+            self.text(cr, &trf!("Now {cur}°", "Ahora {cur}°"), ((x + 6.0).min(g.x1 - 70.0), g.y0 + 8.0), (&fg, 0.8), 0.0);
         }
 
         // puntos
@@ -307,7 +307,7 @@ impl CurveEditor {
             let label = if i < 0 {
                 format!("Base: {}%", st.speeds[0])
             } else {
-                format!("Desde {}° → {}%", st.temps[i as usize], st.speeds[i as usize + 1])
+                trf!("From {}° → {}%", "Desde {}° → {}%", st.temps[i as usize], st.speeds[i as usize + 1])
             };
             let layout = self.area.create_pango_layout(Some(&label));
             let (lw, lh) = layout.pixel_size();

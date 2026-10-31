@@ -1,3 +1,4 @@
+import {tr, setLanguage, language} from './i18n.js';
 // Ventana de preferencias (se separa de prefs.js para poder probarla fuera de GNOME Shell)
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
@@ -13,22 +14,37 @@ export function buildPrefs(window, settings, path) {
     window.set_search_enabled(true);
 
     const page = new Adw.PreferencesPage({
-        title: 'Barra superior',
+        title: tr("Top bar"),
         icon_name: 'termica-symbolic',
     });
     window.add(page);
 
+    const languageGroup = new Adw.PreferencesGroup({
+        title: tr('Language'), description: tr('Restart Térmica to apply the language.'),
+    });
+    const codes = ['system', 'en', 'es'];
+    const languageRow = new Adw.ComboRow({
+        title: tr('Language'),
+        model: Gtk.StringList.new(['System', 'English', 'Spanish'].map(tr)),
+        selected: codes.indexOf(language()),
+    });
+    languageRow.connect('notify::selected', () => {
+        try { setLanguage(codes[languageRow.selected]); }
+        catch (e) { window.add_toast(new Adw.Toast({title: tr('Could not save language preference')})); }
+    });
+    languageGroup.add(languageRow);
+    page.add(languageGroup);
+
     // ---- qué mostrar
     const whatGroup = new Adw.PreferencesGroup({
-        title: 'Qué mostrar',
-        description: 'Activa los datos que quieres ver en la barra. Los de la gráfica NVIDIA muestran «—» ' +
-            'cuando está dormida, y pedirlos la despierta un momento.',
+        title: tr("What to show"),
+        description: tr("Enable the metrics you want in the top bar. NVIDIA metrics show “—” while the GPU is asleep; requesting them briefly wakes it up."),
     });
     const rows = new Map();
     for (const m of METRICS) {
         const row = new Adw.SwitchRow({
             title: m.title,
-            subtitle: `Ejemplo: ${m.sample}${m.light ? '' : ' · usa la gráfica NVIDIA'}`,
+            subtitle: `${tr('Example:')} ${m.sample}${m.light ? '' : tr(" · uses the NVIDIA GPU")}`,
         });
         row.add_prefix(new Gtk.Image({icon_name: `termica-${m.icon}-symbolic`}));
         row.connect('notify::active', () => {
@@ -56,21 +72,20 @@ export function buildPrefs(window, settings, path) {
     };
 
     // ---- formato
-    const fmtGroup = new Adw.PreferencesGroup({title: 'Formato'});
+    const fmtGroup = new Adw.PreferencesGroup({title: tr("Format")});
     const labelsRow = new Adw.SwitchRow({
-        title: 'Mostrar nombre corto',
-        subtitle: 'Agrega «CPU», «GPU», «RAM»… junto a cada valor. Los ventiladores y el consumo ' +
-            'siempre lo llevan porque comparten icono.',
+        title: tr("Show short labels"),
+        subtitle: tr("Adds “CPU”, “GPU”, “RAM”… next to each value. Fans and power always include labels because they share icons."),
     });
     settings.bind('show-labels', labelsRow, 'active', 0);
     const colorRow = new Adw.SwitchRow({
-        title: 'Colorear temperaturas altas',
-        subtitle: 'Amarillo desde 80 °C y rojo desde 90 °C',
+        title: tr("Color high temperatures"),
+        subtitle: tr("Yellow from 80 °C and red from 90 °C"),
     });
     settings.bind('color-temps', colorRow, 'active', 0);
     const intervalRow = Adw.SpinRow.new_with_range(1, 10, 1);
-    intervalRow.title = 'Actualizar cada';
-    intervalRow.subtitle = 'Segundos';
+    intervalRow.title = tr("Update every");
+    intervalRow.subtitle = tr("Seconds");
     settings.bind('interval', intervalRow, 'value', 0);
     fmtGroup.add(labelsRow);
     fmtGroup.add(colorRow);
@@ -79,7 +94,7 @@ export function buildPrefs(window, settings, path) {
 
     // ---- restablecer
     const resetGroup = new Adw.PreferencesGroup();
-    const reset = new Adw.ButtonRow({title: 'Restablecer valores', start_icon_name: 'edit-undo-symbolic'});
+    const reset = new Adw.ButtonRow({title: tr("Reset defaults"), start_icon_name: 'edit-undo-symbolic'});
     reset.connect('activated', () => {
         for (const key of ['panel-items', 'show-labels', 'color-temps', 'interval'])
             settings.reset(key);

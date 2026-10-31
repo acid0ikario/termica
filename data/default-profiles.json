@@ -3,7 +3,7 @@
   "profiles": [
     {
       "id": "silencioso",
-      "name": "Silencioso",
+      "name": "Quiet",
       "gpu": {
         "core_max": 800,
         "mem_max": 5501
@@ -63,7 +63,7 @@
     },
     {
       "id": "balanceado",
-      "name": "Balanceado",
+      "name": "Balanced",
       "gpu": {
         "core_max": 1400,
         "mem_max": 5501
@@ -123,7 +123,7 @@
     },
     {
       "id": "fabrica",
-      "name": "Fábrica",
+      "name": "Factory",
       "gpu": {
         "core_max": null,
         "mem_max": null

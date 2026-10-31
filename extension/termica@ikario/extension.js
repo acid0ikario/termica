@@ -1,3 +1,4 @@
+import {tr, language} from './i18n.js';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
@@ -89,6 +90,7 @@ class TermicaButton extends PanelMenu.Button {
             'changed::interval', () => this._startPanelTimer(),
             this);
 
+        this._language = language();
         this._buildMenu();
         this.menu.connect('open-state-changed', (_m, open) => this._onMenuOpen(open));
 
@@ -208,14 +210,14 @@ class TermicaButton extends PanelMenu.Button {
         const gridItem = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
         const grid = new St.BoxLayout({orientation: VERTICAL, style_class: 'termica-grid', x_expand: true});
         this.cards = {
-            cpu: new Card('PROCESADOR'),
-            gpu: new Card('GRÁFICA'),
-            clock: new Card('RELOJ GPU', true),
-            vram: new Card('MEMORIA GPU', true),
-            fanCpu: new Card('VENTILADOR CPU', true),
-            fanGpu: new Card('VENTILADOR GPU', true),
-            ram: new Card('MEMORIA RAM', true),
-            power: new Card('POTENCIA'),
+            cpu: new Card(tr("PROCESSOR")),
+            gpu: new Card(tr("GRAPHICS")),
+            clock: new Card(tr("GPU CLOCK"), true),
+            vram: new Card(tr("GPU MEMORY"), true),
+            fanCpu: new Card(tr("CPU FAN"), true),
+            fanGpu: new Card(tr("GPU FAN"), true),
+            ram: new Card(tr("RAM"), true),
+            power: new Card(tr("POWER")),
         };
         const rows = [['cpu', 'gpu'], ['clock', 'vram'], ['fanCpu', 'fanGpu'], ['ram', 'power']];
         for (const [a, b] of rows) {
@@ -234,7 +236,7 @@ class TermicaButton extends PanelMenu.Button {
             if (!this._syncing)
                 this._setQuick('cooler_boost', state, this._boost);
         });
-        this._turbo = new PopupMenu.PopupSwitchMenuItem('Turbo Boost del CPU', true);
+        this._turbo = new PopupMenu.PopupSwitchMenuItem(tr("CPU Turbo Boost"), true);
         this._turbo.connect('toggled', (_i, state) => {
             if (!this._syncing)
                 this._setQuick('turbo', state, this._turbo);
@@ -243,7 +245,7 @@ class TermicaButton extends PanelMenu.Button {
         this.menu.addMenuItem(this._turbo);
 
         // qué mostrar en la barra
-        const sub = new PopupMenu.PopupSubMenuMenuItem('Mostrar en la barra', true);
+        const sub = new PopupMenu.PopupSubMenuMenuItem(tr("Show in top bar"), true);
         sub.icon.gicon = this._icon('profile');
         this._metricSwitches = new Map();
         for (const m of METRICS) {
@@ -262,21 +264,21 @@ class TermicaButton extends PanelMenu.Button {
             sub.menu.addMenuItem(item);
             this._metricSwitches.set(m.id, item);
         }
-        sub.menu.addAction('Más opciones…', () => this._ext.openPreferences());
+        sub.menu.addAction(tr("More options…"), () => this._ext.openPreferences());
         this.menu.addMenuItem(sub);
         this._syncMetricSwitches();
 
         // perfiles
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem('Perfiles'));
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem(tr("Profiles")));
         this._profiles = new PopupMenu.PopupMenuSection();
         this.menu.addMenuItem(this._profiles);
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction('Abrir Térmica…', () => {
+        this.menu.addAction(tr("Open Térmica…"), () => {
             Shell.AppSystem.get_default().lookup_app('com.ikario.Termica.desktop')?.activate();
         });
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction('Salir de Térmica', () => this._quit(), 'application-exit-symbolic');
+        this.menu.addAction(tr("Quit Térmica"), () => this._quit(), 'application-exit-symbolic');
 
     }
 
@@ -286,8 +288,7 @@ class TermicaButton extends PanelMenu.Button {
         const uuid = this._ext.uuid;
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             Main.extensionManager.disableExtension(uuid);
-            Main.notify('Térmica', 'Icono oculto. Tu perfil sigue activo. Para volver a mostrarlo abre ' +
-                'la app Térmica → botón del termómetro → «Mostrar icono en la barra».');
+            Main.notify('Térmica', tr("Icon hidden. Your profile stays active. To show it again, open Térmica → thermometer button → “Show icon in top bar”."));
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -295,7 +296,7 @@ class TermicaButton extends PanelMenu.Button {
     // ------------------------------------------------------------ D-Bus
     _call(method, args, cb) {
         if (!this._proxy?.get_name_owner()) {
-            cb?.(null, 'El servicio termicad no está corriendo');
+            cb?.(null, tr("The termicad service is not running"));
             return;
         }
         this._proxy.call(method, args, Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, 30000, null,
@@ -314,7 +315,7 @@ class TermicaButton extends PanelMenu.Button {
     _reload() {
         if (!this._proxy?.get_name_owner()) {
             this._data = null;
-            this._subtitle.text = 'Servicio apagado';
+            this._subtitle.text = tr("Service unavailable");
             for (const {label} of this._panelItems)
                 label.text = '—';
             this._profiles.removeAll();
@@ -344,9 +345,9 @@ class TermicaButton extends PanelMenu.Button {
     _activate(p) {
         this._call('Activate', new GLib.Variant('(s)', [p.id]), (warnings, err) => {
             if (err)
-                this._notifyError(`No se pudo activar «${p.name}»: ${err}`);
+                this._notifyError(`${tr('Could not activate')} “${p.name}”: ${err}`);
             else if (warnings)
-                Main.notify('Térmica', `«${p.name}» activado con avisos: ${warnings}`);
+                Main.notify('Térmica', `“${p.name}” ${tr('activated with warnings:')} ${warnings}`);
         });
     }
 
@@ -400,6 +401,11 @@ class TermicaButton extends PanelMenu.Button {
         }
         if (!open)
             return;
+        if (this._language !== language()) {
+            this._language = language();
+            this.menu.removeAll();
+            this._buildMenu();
+        }
         this._reload();
         this._refreshStatus();
         this._menuTimer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, MENU_INTERVAL, () => {
@@ -416,33 +422,33 @@ class TermicaButton extends PanelMenu.Button {
             const c = this.cards;
             this._updatePanel(s);
 
-            c.cpu.set(`${s.cpu_temp ?? '—'}°`, `${s.pl1}/${s.pl2} W · turbo ${s.turbo ? 'sí' : 'no'}`,
+            c.cpu.set(`${s.cpu_temp ?? '—'}°`, `${s.pl1}/${s.pl2} W · turbo ${s.turbo ? tr("yes") : tr("no")}`,
                 {temp: s.cpu_temp});
             if (s.gpu_awake) {
-                c.gpu.set(`${s.gpu_temp ?? '—'}°`, `Uso ${s.gpu_util ?? '—'}% · ${s.gpu_pstate ?? ''}`,
+                c.gpu.set(`${s.gpu_temp ?? '—'}°`, `${tr('Usage')} ${s.gpu_util ?? '—'}% · ${s.gpu_pstate ?? ''}`,
                     {temp: s.gpu_temp});
-                c.clock.set(`${s.gpu_clock ?? '—'}`, `MHz · memoria ${s.gpu_mem_clock ?? '—'} MHz`,
+                c.clock.set(`${s.gpu_clock ?? '—'}`, `MHz · ${tr('memory')} ${s.gpu_mem_clock ?? '—'} MHz`,
                     {frac: (s.gpu_clock ?? 0) / 2100});
                 const vu = s.vram_used ?? 0, vt = s.vram_total ?? 1;
-                c.vram.set(`${(vu / 1024).toFixed(1)} GB`, `de ${(vt / 1024).toFixed(0)} GB`, {frac: vu / vt});
+                c.vram.set(`${(vu / 1024).toFixed(1)} GB`, `${tr('of')} ${(vt / 1024).toFixed(0)} GB`, {frac: vu / vt});
                 c.power.set(s.gpu_power !== null && s.gpu_power !== undefined ? `${s.gpu_power} W` : '—',
-                    'consumo de la gráfica');
+                    tr("GPU power consumption"));
             } else {
-                c.gpu.set('Dormida', 'sin uso', {});
+                c.gpu.set(tr("Sleeping"), tr("idle"), {});
                 c.clock.set('0', 'MHz', {frac: 0});
-                c.vram.set('—', 'gráfica dormida', {frac: 0});
-                c.power.set('0 W', 'consumo de la gráfica');
+                c.vram.set('—', tr("GPU asleep"), {frac: 0});
+                c.power.set('0 W', tr("GPU power consumption"));
             }
             c.fanCpu.set(s.cpu_rpm ? `${s.cpu_rpm}` : `${s.cpu_fan ?? 0}%`,
                 `RPM · ${s.cpu_fan ?? 0}%`, {frac: (s.cpu_fan ?? 0) / 100});
             c.fanGpu.set(s.gpu_rpm ? `${s.gpu_rpm}` : `${s.gpu_fan ?? 0}%`,
                 `RPM · ${s.gpu_fan ?? 0}%`, {frac: (s.gpu_fan ?? 0) / 100});
             if (s.ram_total)
-                c.ram.set(`${s.ram_used} GB`, `de ${s.ram_total} GB`, {frac: s.ram_used / s.ram_total});
+                c.ram.set(`${s.ram_used} GB`, `${tr('of')} ${s.ram_total} GB`, {frac: s.ram_used / s.ram_total});
 
-            const mode = {auto: 'automático', advanced: 'curva propia', silent: 'silencioso'}[s.fan_mode] ??
+            const mode = {auto: tr("automatic"), advanced: tr("custom curve"), silent: tr("quiet")}[s.fan_mode] ??
                 s.fan_mode;
-            this._subtitle.text = `Ventiladores en ${mode}${s.cooler_boost ? ' · Cooler Boost' : ''}`;
+            this._subtitle.text = `${tr('Fans:')} ${mode}${s.cooler_boost ? ' · Cooler Boost' : ''}`;
             if (!this._busy?.has('cooler_boost'))
                 this._setToggleSilently(this._boost, !!s.cooler_boost);
             if (!this._busy?.has('turbo'))

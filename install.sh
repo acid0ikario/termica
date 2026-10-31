@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 SUDO=sudo; [ "$(id -u)" = 0 ] && SUDO=
 
 if [ "$(id -u)" = 0 ]; then
-    echo "Ejecuta ./install.sh como tu usuario (sin sudo); el script pide sudo cuando lo necesita."
+    echo "Run ./install.sh as your regular user (without sudo); it requests sudo when needed."
     exit 1
 fi
 
@@ -16,17 +16,17 @@ pkg-config --exists gtk4 2>/dev/null || missing="$missing libgtk-4-dev"
 pkg-config --exists libadwaita-1 2>/dev/null || missing="$missing libadwaita-1-dev"
 command -v cc >/dev/null || missing="$missing build-essential"
 if [ -n "$missing" ]; then
-    echo "Faltan paquetes. Instálalos con:"
+    echo "Missing packages. Install them with:"
     echo "  sudo apt install$missing"
     exit 1
 fi
-command -v nvidia-smi >/dev/null || echo "Aviso: no se encontró el driver de NVIDIA; los límites de la GPU no se aplicarán."
-[ -d /sys/devices/platform/msi-ec ] || modprobe -n msi_ec 2>/dev/null || echo "Aviso: el módulo msi_ec no está disponible; el control de ventiladores no funcionará."
+command -v nvidia-smi >/dev/null || echo "Warning: NVIDIA driver not found; GPU limits will not be applied."
+[ -d /sys/devices/platform/msi-ec ] || modprobe -n msi_ec 2>/dev/null || echo "Warning: msi_ec is unavailable; fan control will not work."
 
-echo "→ Compilando (la primera vez tarda unos minutos)"
+echo "→ Building (the first build takes a few minutes)"
 cargo build --release --locked
 
-echo "→ Servicio"
+echo "→ Service"
 $SUDO install -Dm755 target/release/termicad     /usr/local/libexec/termicad
 $SUDO install -Dm644 data/termicad.service       /etc/systemd/system/termicad.service
 $SUDO install -Dm644 data/com.ikario.Termica1.conf /usr/share/dbus-1/system.d/com.ikario.Termica1.conf
@@ -45,7 +45,7 @@ fi
 
 # El servicio viejo hacía lo mismo; se desactiva (el script se conserva como respaldo)
 if systemctl is-enabled -q msi-fan-curve.service 2>/dev/null; then
-    echo "→ Desactivo msi-fan-curve.service (lo reemplaza termicad)"
+    echo "→ Disabling msi-fan-curve.service (replaced by termicad)"
     $SUDO systemctl disable msi-fan-curve.service
 fi
 
@@ -54,14 +54,14 @@ $SUDO systemctl reload dbus 2>/dev/null || true
 $SUDO systemctl enable termicad.service
 $SUDO systemctl restart termicad.service
 
-echo "→ Extensión de GNOME"
+echo "→ GNOME extension"
 EXT=termica@ikario
 DEST="$HOME/.local/share/gnome-shell/extensions/$EXT"
 rm -rf "$DEST"; mkdir -p "$DEST"
-for f in metadata.json extension.js metrics.js prefs.js prefsui.js stylesheet-dark.css stylesheet-light.css icons schemas; do
+for f in metadata.json extension.js i18n.js es.json metrics.js prefs.js prefsui.js stylesheet-dark.css stylesheet-light.css icons schemas; do
     cp -r "extension/$EXT/$f" "$DEST/"
 done
 glib-compile-schemas "$DEST/schemas"
-gnome-extensions enable $EXT 2>/dev/null || echo "   (se activará al volver a iniciar sesión)"
+gnome-extensions enable $EXT 2>/dev/null || echo "   (will activate after you sign in again)"
 
-echo "Listo."
+echo "Done."

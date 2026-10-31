@@ -12,4 +12,4 @@ $SUDO rm -f /etc/systemd/system/termicad.service /usr/share/dbus-1/system.d/com.
 $SUDO rm -rf /usr/local/lib/termica
 $SUDO systemctl daemon-reload
 [ -f /etc/systemd/system/msi-fan-curve.service ] && $SUDO systemctl enable --now msi-fan-curve.service
-echo "Térmica desinstalada. Tus perfiles siguen en /etc/termica/profiles.json"
+echo "Térmica uninstalled. Your profiles remain in /etc/termica/profiles.json"

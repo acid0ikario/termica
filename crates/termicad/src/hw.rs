@@ -35,9 +35,9 @@ pub const ALL: [Part; 3] = [Part::Fans, Part::Cpu, Part::Gpu];
 impl Part {
     fn label(self) -> &'static str {
         match self {
-            Part::Fans => "ventiladores",
-            Part::Cpu => "procesador",
-            Part::Gpu => "gráfica",
+            Part::Fans => "fans",
+            Part::Cpu => "CPU",
+            Part::Gpu => "GPU",
         }
     }
 }
@@ -125,7 +125,7 @@ fn apply_fans(p: &Profile, allow_unknown: &Path) -> Result<(), String> {
         }
     } else if p.fans.mode == FanMode::Advanced {
         return Err(format!(
-            "firmware {} no verificado: no se escribe la curva (ver README, {})",
+            "firmware {} not verified: fan curve will not be written (see README, {})",
             read(format!("{MSI}/fw_version")).unwrap_or_default(),
             allow_unknown.display()
         ));
@@ -162,12 +162,12 @@ fn apply_gpu_direct(gpu: &termica_core::Gpu) -> Result<(), String> {
         }),
         None => dev.reset_gpu_locked_clocks(),
     }
-    .map_err(|e| format!("núcleo: {e}"))?;
+    .map_err(|e| format!("core: {e}"))?;
     match gpu.mem_max {
         Some(max) => dev.set_mem_locked_clocks(GPU_MEM_MIN, max),
         None => dev.reset_mem_locked_clocks(),
     }
-    .map_err(|e| format!("memoria: {e}"))
+    .map_err(|e| format!("memory: {e}"))
 }
 
 pub fn set_turbo(on: bool) -> Result<(), String> {
@@ -182,7 +182,7 @@ pub fn set_cooler_boost(on: bool) -> Result<(), String> {
 pub fn apply_profile(p: &Profile, parts: &[Part], allow_unknown: &Path, dev: bool) -> Vec<String> {
     let names: Vec<_> = parts.iter().map(|p| p.label()).collect();
     if dev {
-        log::info!("[dev] aplicaría «{}» ({}): {}", p.name, names.join(", "), serde_json::to_string(p).unwrap());
+        log::info!("[dev] would apply “{}” ({}): {}", p.name, names.join(", "), serde_json::to_string(p).unwrap());
         return vec![];
     }
     let mut warnings = vec![];
@@ -193,11 +193,11 @@ pub fn apply_profile(p: &Profile, parts: &[Part], allow_unknown: &Path, dev: boo
             Part::Gpu => apply_gpu(p),
         };
         if let Err(e) = result {
-            log::warn!("Error aplicando {}: {e}", part.label());
+            log::warn!("Error applying {}: {e}", part.label());
             warnings.push(format!("{}: {e}", part.label()));
         }
     }
-    log::info!("Perfil «{}» aplicado ({})", p.name, names.join(", "));
+    log::info!("Profile “{}” applied ({})", p.name, names.join(", "));
     warnings
 }
 
@@ -237,7 +237,7 @@ pub fn nvml_main(args: &[String]) -> i32 {
             Some(g) if gpu_over_limit_direct(&g) => 0,
             _ => 1,
         },
-        Some("apply") => match gpu().ok_or_else(|| "límites inválidos".to_string()).and_then(|g| apply_gpu_direct(&g)) {
+        Some("apply") => match gpu().ok_or_else(|| "invalid limits".to_string()).and_then(|g| apply_gpu_direct(&g)) {
             Ok(()) => 0,
             Err(e) => {
                 eprintln!("{e}");

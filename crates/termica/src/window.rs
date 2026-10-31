@@ -1,5 +1,7 @@
 //! Ventana principal: lista de perfiles, editor y estado en vivo.
 
+use crate::i18n::tr;
+
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
@@ -16,11 +18,11 @@ use crate::client::Client;
 use crate::curve::CurveEditor;
 
 const MEM_OPTIONS: &[(Option<u32>, &str)] =
-    &[(None, "De fábrica (6001 MHz)"), (Some(5501), "5501 MHz"), (Some(810), "810 MHz")];
+    &[(None, "Factory default (6001 MHz)"), (Some(5501), "5501 MHz"), (Some(810), "810 MHz")];
 const FAN_OPTIONS: &[(FanMode, &str)] =
-    &[(FanMode::Auto, "Fábrica (automático)"), (FanMode::Advanced, "Curva personalizada")];
+    &[(FanMode::Auto, "Factory default (automatic)"), (FanMode::Advanced, "Custom curve")];
 const SHIFT_OPTIONS: &[(Option<ShiftMode>, &str)] = &[
-    (None, "No cambiar"),
+    (None, "Leave unchanged"),
     (Some(ShiftMode::Eco), "Eco"),
     (Some(ShiftMode::Comfort), "Comfort"),
     (Some(ShiftMode::Turbo), "Turbo"),
@@ -30,10 +32,10 @@ const SHIFT_OPTIONS: &[(Option<ShiftMode>, &str)] = &[
 /// firmware pero msi-ec lo rechaza, por eso no aparece).
 fn shift_hint(mode: Option<ShiftMode>) -> &'static str {
     match mode {
-        None => "Térmica no lo toca: se queda el que tenga el portátil (el último que se puso)",
-        Some(ShiftMode::Eco) => "El más limitado: ventiladores con el tope más bajo, para silencio y batería",
-        Some(ShiftMode::Comfort) => "Pone tope a los ventiladores (unas 4200 rpm), aunque la curva pida más",
-        Some(ShiftMode::Turbo) => "Sin tope: los ventiladores pueden llegar a lo que pida la curva",
+        None => tr("Térmica leaves the laptop's current firmware mode unchanged"),
+        Some(ShiftMode::Eco) => tr("Most restricted: lowest fan speed cap, for quiet operation and battery life"),
+        Some(ShiftMode::Comfort) => tr("Caps fans at about 4200 rpm, even if the curve requests more"),
+        Some(ShiftMode::Turbo) => tr("No cap: fans can reach the speed requested by the curve"),
     }
 }
 
@@ -42,7 +44,7 @@ fn index_of<T: PartialEq>(options: &[(T, &str)], value: &T) -> u32 {
 }
 
 fn labels<T>(options: &[(T, &str)]) -> gtk::StringList {
-    gtk::StringList::new(&options.iter().map(|(_, l)| *l).collect::<Vec<_>>())
+    gtk::StringList::new(&options.iter().map(|(_, l)| tr(l)).collect::<Vec<_>>())
 }
 
 /// Tarjeta con un valor grande y un detalle.
@@ -142,19 +144,23 @@ impl Window {
 
         let toasts = adw::ToastOverlay::new();
         let split = adw::NavigationSplitView::builder().min_sidebar_width(250.0).max_sidebar_width(330.0).build();
-        toasts.set_child(Some(&split));
 
         // ---------- barra lateral
         let side_header = adw::HeaderBar::new();
-        let add_btn = gtk::Button::builder().icon_name("list-add-symbolic").tooltip_text("Nuevo perfil").build();
+        let add_btn = gtk::Button::builder().icon_name("list-add-symbolic").tooltip_text(tr("New profile")).build();
         side_header.pack_start(&add_btn);
         let bar_btn =
-            gtk::Button::builder().icon_name("termica-symbolic").tooltip_text("Qué mostrar en la barra superior").build();
+            gtk::Button::builder().icon_name("termica-symbolic").tooltip_text(tr("Choose what appears in the top bar")).build();
         let menu = gio::Menu::new();
-        menu.append(Some("Restaurar los 3 perfiles por defecto"), Some("win.restore-defaults"));
+        menu.append(Some(tr("Restore the 3 default profiles")), Some("win.restore-defaults"));
+        let languages = gio::Menu::new();
+        for (code, label) in [("system", "System"), ("en", "English"), ("es", "Spanish")] {
+            languages.append(Some(tr(label)), Some(&format!("win.language::{}", code)));
+        }
+        menu.append_submenu(Some(tr("Language")), &languages);
         let menu_btn = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
-            .tooltip_text("Menú")
+            .tooltip_text(tr("Menu"))
             .menu_model(&menu)
             .build();
         side_header.pack_end(&menu_btn);
@@ -162,7 +168,7 @@ impl Window {
 
         let listbox = gtk::ListBox::builder().css_classes(["navigation-sidebar"]).build();
         let (st_cpu, st_gpu, st_fan, st_clock) =
-            (Stat::new("Procesador"), Stat::new("Gráfica"), Stat::new("Ventiladores"), Stat::new("Núcleo GPU"));
+            (Stat::new(tr("Processor")), Stat::new(tr("Graphics")), Stat::new(tr("Fans")), Stat::new(tr("GPU core")));
         let grid = gtk::Grid::builder().column_spacing(8).row_spacing(8).column_homogeneous(true).build();
         grid.attach(&st_cpu.root, 0, 0, 1, 1);
         grid.attach(&st_gpu.root, 1, 0, 1, 1);
@@ -176,7 +182,7 @@ impl Window {
             .margin_bottom(12)
             .margin_top(6)
             .build();
-        stats.append(&gtk::Label::builder().label("Ahora mismo").xalign(0.0).css_classes(["heading"]).build());
+        stats.append(&gtk::Label::builder().label(tr("Right now")).xalign(0.0).css_classes(["heading"]).build());
         stats.append(&grid);
         let side_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         side_box.append(
@@ -194,7 +200,7 @@ impl Window {
 
         // ---------- contenido
         let header = adw::HeaderBar::new();
-        let save_btn = gtk::Button::builder().label("Guardar").css_classes(["suggested-action"]).sensitive(false).build();
+        let save_btn = gtk::Button::builder().label(tr("Save")).css_classes(["suggested-action"]).sensitive(false).build();
         header.pack_end(&save_btn);
         let page = adw::PreferencesPage::new();
 
@@ -214,7 +220,7 @@ impl Window {
         tbox.append(&hero_title);
         tbox.append(&hero_sub);
         let activate_btn = gtk::Button::builder()
-            .label("Activar")
+            .label(tr("Activate"))
             .css_classes(["pill", "suggested-action"])
             .valign(gtk::Align::Center)
             .build();
@@ -224,25 +230,24 @@ impl Window {
         page.add(&hero);
 
         let g = adw::PreferencesGroup::builder().title("General").build();
-        let name_row = adw::EntryRow::builder().title("Nombre del perfil").build();
+        let name_row = adw::EntryRow::builder().title(tr("Profile name")).build();
         g.add(&name_row);
         page.add(&g);
 
         let g = adw::PreferencesGroup::builder()
-            .title("Gráfica NVIDIA")
+            .title(tr("NVIDIA graphics"))
             .description(
-                "RTX 3060 Laptop. De fábrica sube hasta 2100 MHz. Limitarla baja el calor y el ruido, \
-                 pero también la velocidad en juegos y renders de Blender.",
+                tr("RTX 3060 Laptop. Factory clocks reach 2100 MHz. Limiting them reduces heat and noise, but also performance in games and Blender renders."),
             )
             .build();
-        let core_switch = adw::SwitchRow::builder().title("Limitar velocidad del núcleo").build();
+        let core_switch = adw::SwitchRow::builder().title(tr("Limit core clock")).build();
         let core_spin = adw::SpinRow::with_range(300.0, 2100.0, 50.0);
-        core_spin.set_title("Velocidad máxima del núcleo");
+        core_spin.set_title(tr("Maximum core clock"));
         core_spin.set_subtitle("MHz");
         core_switch.bind_property("active", &core_spin, "sensitive").sync_create().build();
         let mem_combo = adw::ComboRow::builder()
-            .title("Memoria máxima")
-            .subtitle("Bajarla casi no reduce el calor")
+            .title(tr("Maximum memory clock"))
+            .subtitle(tr("Lowering it barely reduces heat"))
             .model(&labels(MEM_OPTIONS))
             .build();
         g.add(&core_switch);
@@ -251,30 +256,30 @@ impl Window {
         page.add(&g);
 
         let g = adw::PreferencesGroup::builder()
-            .title("Procesador")
-            .description("Intel i7-1260P. De fábrica: 80 W sostenido y 200 W en ráfagas.")
+            .title(tr("Processor"))
+            .description(tr("Intel i7-1260P. Factory defaults: 80 W sustained and 200 W burst."))
             .build();
         let pl1 = adw::SpinRow::with_range(5.0, 115.0, 1.0);
-        pl1.set_title("Potencia sostenida (PL1)");
-        pl1.set_subtitle("Vatios que puede usar todo el tiempo");
+        pl1.set_title(tr("Sustained power (PL1)"));
+        pl1.set_subtitle(tr("Watts available continuously"));
         let pl2 = adw::SpinRow::with_range(5.0, 200.0, 1.0);
-        pl2.set_title("Potencia de ráfaga (PL2)");
-        pl2.set_subtitle("Vatios por unos segundos al arrancar una tarea");
+        pl2.set_title(tr("Burst power (PL2)"));
+        pl2.set_subtitle(tr("Watts available briefly when starting a task"));
         let turbo = adw::SwitchRow::builder()
             .title("Turbo Boost")
-            .subtitle("Apagarlo baja mucho el calor; el CPU queda en su velocidad base")
+            .subtitle(tr("Turning it off greatly reduces heat; the CPU runs at its base clock"))
             .build();
         g.add(&pl1);
         g.add(&pl2);
         g.add(&turbo);
         page.add(&g);
 
-        let g = adw::PreferencesGroup::builder().title("Ventiladores").build();
+        let g = adw::PreferencesGroup::builder().title(tr("Fans")).build();
         let fan_combo = adw::ComboRow::builder().title("Control").model(&labels(FAN_OPTIONS)).build();
         let boost =
-            adw::SwitchRow::builder().title("Cooler Boost").subtitle("Ventiladores al máximo todo el tiempo").build();
+            adw::SwitchRow::builder().title("Cooler Boost").subtitle(tr("Run fans at maximum speed continuously")).build();
         let shift_combo = adw::ComboRow::builder()
-            .title("Modo del firmware MSI")
+            .title(tr("MSI firmware mode"))
             .subtitle(shift_hint(None))
             .subtitle_lines(2)
             .model(&labels(SHIFT_OPTIONS))
@@ -283,15 +288,15 @@ impl Window {
             row.set_subtitle(shift_hint(SHIFT_OPTIONS[row.selected() as usize].0));
         });
         let auto_boost = adw::SwitchRow::builder()
-            .title("Cooler Boost automático")
-            .subtitle("Lo enciende un rato cuando la CPU o la GPU se calientan, para que no se disparen")
+            .title(tr("Automatic Cooler Boost"))
+            .subtitle(tr("Turns it on briefly when the CPU or GPU gets hot to keep temperatures under control"))
             .build();
         let boost_at = adw::SpinRow::with_range(BOOST_TEMP_RANGE.0 as f64, BOOST_TEMP_RANGE.1 as f64, 1.0);
-        boost_at.set_title("Encender a partir de");
-        boost_at.set_subtitle("°C, en la CPU o la GPU");
+        boost_at.set_title(tr("Turn on at"));
+        boost_at.set_subtitle(tr("°C, on the CPU or GPU"));
         let boost_secs = adw::SpinRow::with_range(BOOST_SECS_RANGE.0 as f64, BOOST_SECS_RANGE.1 as f64, 5.0);
-        boost_secs.set_title("Mantener encendido");
-        boost_secs.set_subtitle("Segundos después de bajar de esa temperatura");
+        boost_secs.set_title(tr("Keep on for"));
+        boost_secs.set_subtitle(tr("Seconds after cooling below that temperature"));
         g.add(&fan_combo);
         g.add(&boost);
         g.add(&auto_boost);
@@ -301,10 +306,9 @@ impl Window {
         page.add(&g);
 
         let curve_group = adw::PreferencesGroup::builder()
-            .title("Curva de ventilador")
+            .title(tr("Fan curve"))
             .description(
-                "Arrastra los puntos: a la derecha cambia la temperatura y hacia arriba la velocidad. \
-                 La línea punteada es la temperatura actual.",
+                tr("Drag points: right changes temperature and up changes speed. The dotted line shows the current temperature."),
             )
             .build();
         let toggles = adw::ToggleGroup::builder().valign(gtk::Align::Center).build();
@@ -320,13 +324,13 @@ impl Window {
 
         let g = adw::PreferencesGroup::new();
         let restore_row = adw::ButtonRow::builder()
-            .title("Restaurar valores por defecto")
+            .title(tr("Restore defaults"))
             .start_icon_name("edit-undo-symbolic")
             .build();
         g.add(&restore_row);
-        let dup_row = adw::ButtonRow::builder().title("Duplicar perfil").start_icon_name("edit-copy-symbolic").build();
+        let dup_row = adw::ButtonRow::builder().title(tr("Duplicate profile")).start_icon_name("edit-copy-symbolic").build();
         let delete_row = adw::ButtonRow::builder()
-            .title("Eliminar perfil")
+            .title(tr("Delete profile"))
             .start_icon_name("user-trash-symbolic")
             .css_classes(["destructive-action"])
             .build();
@@ -337,24 +341,31 @@ impl Window {
         let tv = adw::ToolbarView::new();
         tv.add_top_bar(&header);
         tv.set_content(Some(&page));
-        let content_page = adw::NavigationPage::new(&tv, "Perfil");
+        let content_page = adw::NavigationPage::new(&tv, tr("Profile"));
         split.set_content(Some(&content_page));
 
         // ---------- servicio apagado
         let unavailable = adw::ToolbarView::new();
-        unavailable.add_top_bar(&adw::HeaderBar::new());
+        let unavailable_header = adw::HeaderBar::new();
+        let language_menu = gio::Menu::new();
+        language_menu.append_submenu(Some(tr("Language")), &languages);
+        unavailable_header.pack_end(&gtk::MenuButton::builder()
+            .icon_name("open-menu-symbolic").tooltip_text(tr("Menu"))
+            .menu_model(&language_menu).build());
+        unavailable.add_top_bar(&unavailable_header);
         unavailable.set_content(Some(
             &adw::StatusPage::builder()
                 .icon_name("dialog-warning-symbolic")
-                .title("El servicio no está corriendo")
-                .description("Térmica necesita el servicio termicad.\nEjecútalo con: sudo systemctl start termicad")
+                .title(tr("Service unavailable"))
+                .description(tr("Térmica needs the termicad service.\nStart it with: sudo systemctl start termicad"))
                 .build(),
         ));
 
         let stack = gtk::Stack::builder().transition_type(gtk::StackTransitionType::Crossfade).build();
-        stack.add_named(&toasts, Some("main"));
+        stack.add_named(&split, Some("main"));
         stack.add_named(&unavailable, Some("unavailable"));
-        win.set_content(Some(&stack));
+        toasts.set_child(Some(&stack));
+        win.set_content(Some(&toasts));
 
         let bp = adw::Breakpoint::new(adw::BreakpointCondition::parse("max-width: 680sp").unwrap());
         bp.add_setter(&split, "collapsed", Some(&true.to_value()));
@@ -440,6 +451,21 @@ impl Window {
         let restore_all = gio::SimpleAction::new("restore-defaults", None);
         restore_all.connect_activate(clone!(#[weak] w, move |_, _| w.confirm_restore(None)));
         w.win.add_action(&restore_all);
+        let language = gio::SimpleAction::new_stateful(
+            "language", Some(glib::VariantTy::STRING), &crate::i18n::language().to_variant(),
+        );
+        language.connect_activate(clone!(#[weak] w, move |action, value| {
+            let Some(value) = value.and_then(|v| v.str()) else { return };
+            if !matches!(value, "system" | "en" | "es") { return; }
+            match crate::i18n::set_language(value) {
+                Ok(()) => {
+                    action.set_state(&value.to_variant());
+                    w.toast(tr("Restart Térmica to apply the language."));
+                }
+                Err(_) => w.toast(tr("Could not save language preference")),
+            }
+        }));
+        w.win.add_action(&language);
         bar_btn.connect_clicked(clone!(#[weak] w, move |_| w.open_panel_dialog()));
 
         w.client.connect_signal(clone!(#[weak] w, move |name| {
@@ -470,7 +496,7 @@ impl Window {
 
     pub fn open_panel_dialog(&self) {
         if !crate::panel::present(&self.win) {
-            self.toast("La extensión de la barra no está instalada");
+            self.toast(tr("The top bar extension is not installed"));
         }
     }
 
@@ -496,7 +522,7 @@ impl Window {
             let store = match w.client.call("GetProfiles", None).await {
                 Ok(Some(json)) => match serde_json::from_str::<Store>(&json) {
                     Ok(s) => s,
-                    Err(e) => return w.toast(&format!("Respuesta inválida del servicio: {e}")),
+                    Err(e) => return w.toast(&trf!("Invalid service response: {e}", "Respuesta inválida del servicio: {e}")),
                 },
                 Ok(None) => return,
                 Err(e) => return w.toast(&e),
@@ -523,7 +549,7 @@ impl Window {
         for p in &store.profiles {
             let row = adw::ActionRow::builder()
                 .title(glib::markup_escape_text(&p.name))
-                .subtitle(p.summary())
+                .subtitle(profile_summary(p))
                 .activatable(true)
                 .subtitle_lines(2)
                 .name(&p.id)
@@ -531,7 +557,7 @@ impl Window {
             let icon = gtk::Image::builder()
                 .icon_name("object-select-symbolic")
                 .visible(p.id == store.active)
-                .tooltip_text("Perfil activo")
+                .tooltip_text(tr("Active profile"))
                 .build();
             row.add_suffix(&icon);
             self.listbox.append(&row);
@@ -586,15 +612,15 @@ impl Window {
         let (Some(store), Some(sel)) = (m.data.as_ref(), m.selected.as_ref()) else { return };
         let active = &store.active == sel;
         let name = self.name_row.text();
-        let name = if name.is_empty() { "Sin nombre".into() } else { name.to_string() };
+        let name = if name.is_empty() { tr("Unnamed").into() } else { name.to_string() };
         self.hero_title.set_label(&name);
         self.content_page.set_title(&name);
-        self.hero_sub.set_label(if active { "Este es el perfil activo" } else { "Perfil guardado, no está activo" });
+        self.hero_sub.set_label(if active { tr("This is the active profile") } else { tr("Saved profile, currently inactive") });
         if self.dirty.get() {
-            self.activate_btn.set_label(if active { "Guardar y aplicar" } else { "Guardar y activar" });
+            self.activate_btn.set_label(if active { tr("Save and apply") } else { tr("Save and activate") });
             self.activate_btn.set_sensitive(true);
         } else {
-            self.activate_btn.set_label(if active { "Activo" } else { "Activar" });
+            self.activate_btn.set_label(if active { tr("Active") } else { tr("Activate") });
             self.activate_btn.set_sensitive(!active);
         }
         self.delete_row.set_sensitive(!active && store.profiles.len() > 1);
@@ -605,9 +631,9 @@ impl Window {
             let differs = self.collect() != d;
             self.restore_row.set_sensitive(differs);
             self.restore_row.set_tooltip_text(Some(if differs {
-                "Vuelve a los valores con los que viene este perfil"
+                tr("Restore this profile's original settings")
             } else {
-                "Ya tiene sus valores por defecto"
+                tr("Already using default settings")
             }));
         }
         // con el Cooler Boost siempre encendido, el automático no tiene sentido
@@ -669,11 +695,11 @@ impl Window {
             return;
         }
         let dialog = adw::AlertDialog::new(
-            Some("¿Descartar cambios?"),
-            Some(&format!("Tienes cambios sin guardar en «{}».", self.name_row.text())),
+            Some(tr("Discard changes?")),
+            Some(&trf!("You have unsaved changes in “{}”.", "Tienes cambios sin guardar en «{}».", self.name_row.text())),
         );
-        dialog.add_response("cancel", "Cancelar");
-        dialog.add_response("discard", "Descartar");
+        dialog.add_response("cancel", tr("Cancel"));
+        dialog.add_response("discard", tr("Discard"));
         dialog.set_response_appearance("discard", adw::ResponseAppearance::Destructive);
         let w = self.clone();
         glib::spawn_future_local(async move {
@@ -710,7 +736,7 @@ impl Window {
             let warnings: Vec<&str> =
                 out["warnings"].as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
             w.set_dirty(false);
-            w.toast(&if warnings.is_empty() { "Guardado".into() } else { format!("Guardado: {}", warnings.join("; ")) });
+            w.toast(&if warnings.is_empty() { tr("Saved").into() } else { trf!("Saved: {}", "Guardado: {}", warnings.join("; ")) });
             w.reload(Some(id.clone()));
             if then_activate {
                 w.activate_id(id).await;
@@ -740,9 +766,9 @@ impl Window {
                     .unwrap_or(id);
                 let warnings = warnings.unwrap_or_default();
                 self.toast(&if warnings.is_empty() {
-                    format!("Perfil «{name}» activado")
+                    trf!("Profile “{name}” activated", "Perfil «{name}» activado")
                 } else {
-                    format!("Perfil «{name}» activado. Avisos: {warnings}")
+                    trf!("Profile “{name}” activated. Warnings: {warnings}", "Perfil «{name}» activado. Avisos: {warnings}")
                 });
             }
         }
@@ -760,7 +786,7 @@ impl Window {
             }
         };
         base.id = String::new();
-        base.name = if duplicate { format!("{} (copia)", base.name).chars().take(40).collect() } else { "Nuevo perfil".into() };
+        base.name = if duplicate { trf!("{} (copy)", "{} (copia)", base.name).chars().take(40).collect() } else { tr("New profile").into() };
         let json = serde_json::to_string(&base).unwrap();
         let w = self.clone();
         glib::spawn_future_local(async move {
@@ -771,7 +797,7 @@ impl Window {
                     w.dirty.set(false);
                     w.reload(out["id"].as_str().map(str::to_string));
                     w.split.set_show_content(true);
-                    w.toast("Perfil creado");
+                    w.toast(tr("Profile created"));
                 }
             }
         });
@@ -779,9 +805,9 @@ impl Window {
 
     fn confirm_delete(self: &Rc<Self>) {
         let name = self.name_row.text().to_string();
-        let dialog = adw::AlertDialog::new(Some(&format!("¿Eliminar «{name}»?")), Some("Esta acción no se puede deshacer."));
-        dialog.add_response("cancel", "Cancelar");
-        dialog.add_response("delete", "Eliminar");
+        let dialog = adw::AlertDialog::new(Some(&trf!("Delete “{name}”?", "¿Eliminar «{name}»?")), Some(tr("This action cannot be undone.")));
+        dialog.add_response("cancel", tr("Cancel"));
+        dialog.add_response("delete", tr("Delete"));
         dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
         let w = self.clone();
         glib::spawn_future_local(async move {
@@ -796,7 +822,7 @@ impl Window {
                     w.dirty.set(false);
                     let active = w.model.borrow().data.as_ref().map(|s| s.active.clone());
                     w.reload(active);
-                    w.toast(&format!("«{name}» eliminado"));
+                    w.toast(&trf!("“{name}” deleted", "«{name}» eliminado"));
                 }
             }
         });
@@ -806,19 +832,18 @@ impl Window {
     fn confirm_restore(self: &Rc<Self>, id: Option<String>) {
         let (heading, body) = match &id {
             Some(_) => (
-                format!("¿Restaurar «{}»?", self.name_row.text()),
-                "Vuelve a sus valores por defecto. Se pierden los cambios que le hiciste.".to_string(),
+                trf!("Restore “{}”?", "¿Restaurar «{}»?", self.name_row.text()),
+                tr("Restore the default settings. Your changes to this profile will be lost.").to_string(),
             ),
             None => (
-                "¿Restaurar los perfiles por defecto?".to_string(),
-                "Silencioso, Balanceado y Fábrica vuelven a sus valores por defecto (y reaparecen si los \
-                 borraste). Tus perfiles propios no cambian."
+                tr("Restore default profiles?").to_string(),
+                tr("Quiet, Balanced and Factory return to their defaults (and reappear if deleted). Your custom profiles remain unchanged.")
                     .to_string(),
             ),
         };
         let dialog = adw::AlertDialog::new(Some(&heading), Some(&body));
-        dialog.add_response("cancel", "Cancelar");
-        dialog.add_response("restore", "Restaurar");
+        dialog.add_response("cancel", tr("Cancel"));
+        dialog.add_response("restore", tr("Restore"));
         dialog.set_response_appearance("restore", adw::ResponseAppearance::Destructive);
         let w = self.clone();
         glib::spawn_future_local(async move {
@@ -831,9 +856,9 @@ impl Window {
                     w.dirty.set(false);
                     let select = w.model.borrow().selected.clone();
                     w.reload(select);
-                    let msg = if id.is_some() { "Valores por defecto restaurados" } else { "Perfiles restaurados" };
+                    let msg = if id.is_some() { tr("Default settings restored") } else { tr("Profiles restored") };
                     let warnings = warnings.unwrap_or_default();
-                    w.toast(&if warnings.is_empty() { msg.to_string() } else { format!("{msg}. Avisos: {warnings}") });
+                    w.toast(&if warnings.is_empty() { msg.to_string() } else { trf!("{msg}. Warnings: {warnings}", "{msg}. Avisos: {warnings}") });
                 }
             }
         });
@@ -853,25 +878,25 @@ impl Window {
             let cpu_t = int("cpu_temp");
             w.st_cpu.set(
                 &cpu_t.map(|t| format!("{t}°")).unwrap_or("—".into()),
-                &format!("Procesador · {}/{} W", int("pl1").unwrap_or(0), int("pl2").unwrap_or(0)),
+                &trf!("Processor · {}/{} W", "Procesador · {}/{} W", int("pl1").unwrap_or(0), int("pl2").unwrap_or(0)),
                 cpu_t,
             );
             if s["gpu_awake"].as_bool() == Some(true) {
                 let gpu_t = int("gpu_temp");
                 let pw = int("gpu_power").map(|p| format!(" · {p} W")).unwrap_or_default();
-                w.st_gpu.set(&gpu_t.map(|t| format!("{t}°")).unwrap_or("—".into()), &format!("Gráfica{pw}"), gpu_t);
+                w.st_gpu.set(&gpu_t.map(|t| format!("{t}°")).unwrap_or("—".into()), &trf!("Graphics{pw}", "Gráfica{pw}"), gpu_t);
                 w.st_clock.set(
                     &int("gpu_clock").map(|c| c.to_string()).unwrap_or("—".into()),
-                    &format!("MHz núcleo · {}", s["gpu_pstate"].as_str().unwrap_or("")),
+                    &trf!("Core MHz · {}", "MHz núcleo · {}", s["gpu_pstate"].as_str().unwrap_or("")),
                     None,
                 );
             } else {
-                w.st_gpu.set("Dormida", "Gráfica sin uso", None);
-                w.st_clock.set("0", "MHz núcleo", None);
+                w.st_gpu.set(tr("Sleeping"), tr("Graphics idle"), None);
+                w.st_clock.set("0", tr("Core MHz"), None);
             }
             let mode = match s["fan_mode"].as_str() {
                 Some("auto") => "auto",
-                Some("advanced") => "curva",
+                Some("advanced") => tr("curve"),
                 Some(other) => other,
                 None => "",
             };
@@ -889,4 +914,15 @@ impl Window {
             w.update_curve_current();
         });
     }
+}
+
+fn profile_summary(p: &Profile) -> String {
+    let gpu = p.gpu.core_max.map(|c| format!("GPU ≤ {c} MHz"))
+        .unwrap_or_else(|| tr("Factory GPU clocks").to_string());
+    let fan = tr(if p.fans.mode == FanMode::Advanced { "custom curve" } else { "automatic fans" });
+    let mut parts = vec![gpu, format!("CPU {}/{} W", p.cpu.pl1, p.cpu.pl2), fan.to_string()];
+    if !p.cpu.turbo { parts.push(tr("turbo off").to_string()); }
+    if p.fans.cooler_boost { parts.push("Cooler Boost".into()); }
+    else if let Some(at) = p.fans.boost_at { parts.push(trf!("boost at {at}°", "boost a {at}°")); }
+    parts.join(" · ")
 }

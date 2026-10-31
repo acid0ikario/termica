@@ -3,6 +3,8 @@
 //! Opciones: `--barra` abre directamente el diálogo de la barra superior.
 //! Desarrollo: `TERMICA_DEV=1` (habla con `termicad --dev`), `TERMICA_SCREENSHOT=archivo.png`.
 
+#[macro_use]
+mod i18n;
 mod client;
 mod curve;
 mod panel;
@@ -35,7 +37,7 @@ fn main() -> glib::ExitCode {
     }
 
     app.connect_startup(|app| {
-        let display = gdk::Display::default().expect("sin pantalla");
+        let display = gdk::Display::default().expect("no display available");
         gtk::IconTheme::for_display(&display).add_search_path(panel::ext_dir().join("icons"));
         let provider = gtk::CssProvider::new();
         provider.load_from_string(CSS);
@@ -57,7 +59,7 @@ fn main() -> glib::ExitCode {
         let client = match client::Client::new() {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("No se pudo conectar con D-Bus: {e}");
+                eprintln!("Could not connect to D-Bus: {e}");
                 app.quit();
                 return;
             }

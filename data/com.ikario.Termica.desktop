@@ -1,8 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=Térmica
-GenericName=Perfiles térmicos
-Comment=Perfiles de GPU, CPU y ventiladores
+GenericName=Thermal profiles
+GenericName[es]=Perfiles térmicos
+Comment=GPU, CPU and fan profiles
+Comment[es]=Perfiles de GPU, CPU y ventiladores
 Exec=termica
 Icon=com.ikario.Termica
 Terminal=false

@@ -1,5 +1,7 @@
 //! Diálogo «Barra superior»: qué datos muestra la extensión y si su icono está visible.
 
+use crate::i18n::tr;
+
 use std::path::PathBuf;
 
 use adw::prelude::*;
@@ -10,20 +12,20 @@ const SCHEMA_ID: &str = "org.gnome.shell.extensions.termica";
 
 /// Igual que `extension/termica@ikario/metrics.js`: (id, título, icono, usa la NVIDIA).
 const METRICS: &[(&str, &str, &str, bool)] = &[
-    ("profile", "Perfil activo", "profile", false),
-    ("cpu-temp", "Temperatura del CPU", "cpu", false),
-    ("gpu-temp", "Temperatura de la GPU", "gpu", false),
-    ("cpu-power", "Consumo del CPU", "bolt", false),
-    ("gpu-power", "Consumo de la GPU", "bolt", true),
-    ("cpu-fan-rpm", "Ventilador 1 (CPU), RPM", "fan", false),
-    ("gpu-fan-rpm", "Ventilador 2 (GPU), RPM", "fan", false),
-    ("cpu-fan-pct", "Ventilador 1 (CPU), %", "fan", false),
-    ("gpu-fan-pct", "Ventilador 2 (GPU), %", "fan", false),
-    ("gpu-clock", "Reloj del núcleo GPU", "speed", true),
-    ("gpu-mem-clock", "Reloj de la memoria GPU", "wave", true),
-    ("gpu-util", "Uso de la GPU", "activity", true),
-    ("vram", "Memoria GPU usada (VRAM)", "vram", true),
-    ("ram", "Memoria RAM usada", "ram", false),
+    ("profile", "Active profile", "profile", false),
+    ("cpu-temp", "CPU temperature", "cpu", false),
+    ("gpu-temp", "GPU temperature", "gpu", false),
+    ("cpu-power", "CPU power", "bolt", false),
+    ("gpu-power", "GPU power", "bolt", true),
+    ("cpu-fan-rpm", "Fan 1 (CPU), RPM", "fan", false),
+    ("gpu-fan-rpm", "Fan 2 (GPU), RPM", "fan", false),
+    ("cpu-fan-pct", "Fan 1 (CPU), %", "fan", false),
+    ("gpu-fan-pct", "Fan 2 (GPU), %", "fan", false),
+    ("gpu-clock", "GPU core clock", "speed", true),
+    ("gpu-mem-clock", "GPU memory clock", "wave", true),
+    ("gpu-util", "GPU utilization", "activity", true),
+    ("vram", "GPU memory used (VRAM)", "vram", true),
+    ("ram", "RAM used", "ram", false),
 ];
 
 pub fn ext_dir() -> PathBuf {
@@ -66,15 +68,15 @@ async fn set_extension_enabled(enabled: bool) -> Result<(), glib::Error> {
 /// Abre el diálogo. Devuelve `false` si la extensión no está instalada.
 pub fn present(parent: &impl IsA<gtk::Widget>) -> bool {
     let Some(settings) = settings() else { return false };
-    let dialog = adw::PreferencesDialog::builder().title("Barra superior").search_enabled(true).build();
-    let page = adw::PreferencesPage::builder().title("Barra superior").icon_name("termica-symbolic").build();
+    let dialog = adw::PreferencesDialog::builder().title(tr("Top bar")).search_enabled(true).build();
+    let page = adw::PreferencesPage::builder().title(tr("Top bar")).icon_name("termica-symbolic").build();
     dialog.add(&page);
 
     // icono visible
     let top = adw::PreferencesGroup::new();
     let visible = adw::SwitchRow::builder()
-        .title("Mostrar icono en la barra")
-        .subtitle("Al apagarlo se oculta el icono; tu perfil sigue activo")
+        .title(tr("Show icon in top bar"))
+        .subtitle(tr("Turning this off hides the icon; your profile stays active"))
         .active(extension_enabled())
         .build();
     visible.add_prefix(&gtk::Image::from_icon_name("termica-symbolic"));
@@ -82,7 +84,7 @@ pub fn present(parent: &impl IsA<gtk::Widget>) -> bool {
         let row = row.clone();
         glib::spawn_future_local(async move {
             if let Err(e) = set_extension_enabled(row.is_active()).await {
-                eprintln!("No se pudo cambiar la extensión: {}", e.message());
+                eprintln!("Could not change extension state: {}", e.message());
                 row.set_active(!row.is_active());
             }
         });
@@ -92,14 +94,14 @@ pub fn present(parent: &impl IsA<gtk::Widget>) -> bool {
 
     // qué mostrar
     let group = adw::PreferencesGroup::builder()
-        .title("Qué mostrar en la barra")
-        .description("Los cambios se ven al instante. Los datos de la NVIDIA muestran «—» cuando la gráfica está dormida.")
+        .title(tr("What to show in the top bar"))
+        .description(tr("Changes appear immediately. NVIDIA metrics show “—” while the GPU is asleep."))
         .build();
     let mut rows = vec![];
     for &(id, title, icon, nvidia) in METRICS {
         let row = adw::SwitchRow::builder()
-            .title(title)
-            .subtitle(if nvidia { "Usa la gráfica NVIDIA" } else { "" })
+            .title(tr(title))
+            .subtitle(if nvidia { tr("Uses the NVIDIA GPU") } else { "" })
             .build();
         row.add_prefix(&gtk::Image::from_icon_name(&format!("termica-{icon}-symbolic")));
         let s = settings.clone();
@@ -137,20 +139,20 @@ pub fn present(parent: &impl IsA<gtk::Widget>) -> bool {
     let handler = settings.connect_changed(Some("panel-items"), move |s, _| sync(s));
 
     // formato
-    let fmt = adw::PreferencesGroup::builder().title("Formato").build();
+    let fmt = adw::PreferencesGroup::builder().title(tr("Format")).build();
     let labels = adw::SwitchRow::builder()
-        .title("Mostrar nombre corto")
-        .subtitle("«CPU», «GPU», «RAM»… junto a cada valor")
+        .title(tr("Show short labels"))
+        .subtitle(tr("“CPU”, “GPU”, “RAM”… next to each value"))
         .build();
     settings.bind("show-labels", &labels, "active").build();
     let color = adw::SwitchRow::builder()
-        .title("Colorear temperaturas altas")
-        .subtitle("Amarillo desde 80 °C, rojo desde 90 °C")
+        .title(tr("Color high temperatures"))
+        .subtitle(tr("Yellow from 80 °C, red from 90 °C"))
         .build();
     settings.bind("color-temps", &color, "active").build();
     let interval = adw::SpinRow::with_range(1.0, 10.0, 1.0);
-    interval.set_title("Actualizar cada");
-    interval.set_subtitle("Segundos");
+    interval.set_title(tr("Update every"));
+    interval.set_subtitle(tr("Seconds"));
     settings.bind("interval", &interval, "value").build();
     fmt.add(&labels);
     fmt.add(&color);

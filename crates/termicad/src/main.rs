@@ -41,7 +41,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .serve_at(OBJECT_PATH, Termica { state: state.clone(), cfg: cfg.clone() })
         .build()
         .await?;
-    log::info!("termicad listo{}", if dev { " (modo desarrollo)" } else { "" });
+    log::info!("termicad ready{}", if dev { " (development mode)" } else { "" });
 
     apply_active(&state, &cfg, &hw::ALL).await;
 
@@ -57,13 +57,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 tick += 1;
                 let awake = hw::gpu_awake();
                 if awake && !was_awake {
-                    log::info!("La GPU despertó: reaplico sus límites");
+                    log::info!("GPU woke up: reapplying its limits");
                     apply_active(&state, &cfg, &[hw::Part::Gpu]).await;
                 } else if awake && tick.is_multiple_of(6) {
                     let gpu = state.lock().unwrap().store.active_profile().gpu.clone();
                     let over = tokio::task::spawn_blocking(move || hw::gpu_over_limit(&gpu)).await.unwrap_or(false);
                     if over {
-                        log::info!("La GPU pasó su límite (se perdió): lo reaplico");
+                        log::info!("GPU exceeded its limit (limit was lost): reapplying it");
                         apply_active(&state, &cfg, &[hw::Part::Gpu]).await;
                     }
                 }
@@ -82,7 +82,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 if cfg.dev {
                     log::info!("[dev] cooler_boost = {on}");
                 } else if let Err(e) = hw::set_cooler_boost(on) {
-                    log::warn!("Cooler Boost automático: {e}");
+                    log::warn!("Automatic Cooler Boost: {e}");
                 }
             };
             let mut until: Option<Instant> = None;
@@ -101,7 +101,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     None => until = None,
                     Some(at) if temp.is_some_and(|t| t >= at as i64) => {
                         if until.is_none() {
-                            log::info!("{}° ≥ {at}°: enciendo el Cooler Boost", temp.unwrap_or(0));
+                            log::info!("{}° ≥ {at}°: turning Cooler Boost on", temp.unwrap_or(0));
                         }
                         // se vuelve a escribir por si algo lo apagó (cambio de perfil, suspensión)
                         if !hw::cooler_boost_on() {
@@ -111,7 +111,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     Some(_) => {
                         if until.is_some_and(|u| now >= u) {
-                            log::info!("{}°: apago el Cooler Boost", temp.unwrap_or(0));
+                            log::info!("{}°: turning Cooler Boost off", temp.unwrap_or(0));
                             set(false);
                             until = None;
                         }
@@ -134,14 +134,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             )
             .await
             else {
-                return log::warn!("No pude conectar con logind");
+                return log::warn!("Could not connect to logind");
             };
             let Ok(mut stream) = login.receive_signal("PrepareForSleep").await else {
-                return log::warn!("No pude escuchar las suspensiones");
+                return log::warn!("Could not subscribe to suspend events");
             };
             while let Some(msg) = stream.next().await {
                 if let Ok(false) = msg.body().deserialize::<bool>() {
-                    log::info!("Regreso de suspensión: reaplico el perfil");
+                    log::info!("Resumed from suspend: reapplying profile");
                     tokio::time::sleep(Duration::from_secs(4)).await;
                     apply_active(&state, &cfg, &hw::ALL).await;
                 }
@@ -154,6 +154,6 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         _ = tokio::signal::ctrl_c() => {}
         _ = term.recv() => {}
     }
-    log::info!("termicad se detiene");
+    log::info!("termicad stopping");
     Ok(())
 }

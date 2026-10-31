@@ -1,7 +1,7 @@
 {
   "uuid": "termica@ikario",
   "name": "Térmica",
-  "description": "Icono en la barra con temperaturas, ventiladores, perfiles y Cooler/Turbo Boost.",
+  "description": "Top bar temperatures, fans, profiles, and Cooler/Turbo Boost controls.",
   "shell-version": [
     "51"
   ],
