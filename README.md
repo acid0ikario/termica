@@ -113,7 +113,7 @@ Profiles are saved in `/etc/termica/profiles.json`. The active profile persists 
 - **Edit profiles:** use the Térmica app. Saving the active profile applies the changes immediately.
 - **Quick Cooler Boost / Turbo Boost:** use the top bar switches. These settings last until the next profile change; save them in a profile to make them permanent.
 - **Choose top bar metrics:** app → thermometer button, top bar menu → *Show in top bar*, or Extensions → Térmica → ⚙.
-- **Hide the icon:** top bar menu → *Quit Térmica*. The profile stays applied. Show it again with app → thermometer button → *Show icon in top bar*.
+- **Hide the icon:** top bar menu → *Quit Térmica*. The profile stays applied. Opening Térmica again automatically restores the top bar icon. You can also toggle it with app → thermometer button → *Show icon in top bar*.
 
 ### Value validation
 

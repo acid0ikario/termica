@@ -45,13 +45,32 @@ fn settings() -> Option<gio::Settings> {
 }
 
 fn extension_enabled() -> bool {
-    gio::Settings::new("org.gnome.shell").strv("enabled-extensions").iter().any(|s| s == EXT_UUID)
+    let settings = gio::Settings::new("org.gnome.shell");
+    settings.strv("enabled-extensions").iter().any(|s| s == EXT_UUID)
+        && !settings.strv("disabled-extensions").iter().any(|s| s == EXT_UUID)
+        && !settings.boolean("disable-user-extensions")
+}
+
+/// Opening the desktop app also restores the tray icon hidden by Quit Térmica.
+pub fn restore_on_open() {
+    if std::env::var_os("TERMICA_DEV").is_some()
+        || std::env::var_os("TERMICA_SCREENSHOT").is_some()
+        || settings().is_none()
+        || extension_enabled()
+    {
+        return;
+    }
+    glib::spawn_future_local(async {
+        if let Err(error) = set_extension_enabled(true).await {
+            eprintln!("Could not restore the top bar icon: {}", error.message());
+        }
+    });
 }
 
 /// Activa o desactiva la extensión pidiéndoselo a GNOME Shell.
 async fn set_extension_enabled(enabled: bool) -> Result<(), glib::Error> {
     let bus = gio::bus_get_future(gio::BusType::Session).await?;
-    bus.call_future(
+    let reply = bus.call_future(
         Some("org.gnome.Shell.Extensions"),
         "/org/gnome/Shell/Extensions",
         "org.gnome.Shell.Extensions",
@@ -61,8 +80,11 @@ async fn set_extension_enabled(enabled: bool) -> Result<(), glib::Error> {
         gio::DBusCallFlags::NONE,
         -1,
     )
-    .await
-    .map(|_| ())
+    .await?;
+    match reply.get::<(bool,)>() {
+        Some((true,)) => Ok(()),
+        _ => Err(glib::Error::new(gio::IOErrorEnum::Failed, "GNOME Shell could not change the extension state")),
+    }
 }
 
 /// Abre el diálogo. Devuelve `false` si la extensión no está instalada.
@@ -80,14 +102,31 @@ pub fn present(parent: &impl IsA<gtk::Widget>) -> bool {
         .active(extension_enabled())
         .build();
     visible.add_prefix(&gtk::Image::from_icon_name("termica-symbolic"));
-    visible.connect_active_notify(|row| {
+    let syncing = std::rc::Rc::new(std::cell::Cell::new(false));
+    let updating = syncing.clone();
+    visible.connect_active_notify(move |row| {
+        if updating.get() {
+            return;
+        }
         let row = row.clone();
+        let updating = updating.clone();
         glib::spawn_future_local(async move {
             if let Err(e) = set_extension_enabled(row.is_active()).await {
                 eprintln!("Could not change extension state: {}", e.message());
-                row.set_active(!row.is_active());
             }
+            updating.set(true);
+            row.set_active(extension_enabled());
+            updating.set(false);
         });
+    });
+    let shell_settings = gio::Settings::new("org.gnome.shell");
+    let row = visible.clone();
+    let shell_handler = shell_settings.connect_changed(None, move |_, key| {
+        if matches!(key, "enabled-extensions" | "disabled-extensions" | "disable-user-extensions") {
+            syncing.set(true);
+            row.set_active(extension_enabled());
+            syncing.set(false);
+        }
     });
     top.add(&visible);
     page.add(&top);
@@ -161,11 +200,49 @@ pub fn present(parent: &impl IsA<gtk::Widget>) -> bool {
 
     let s = settings.clone();
     let handler = std::cell::Cell::new(Some(handler));
+    let shell_handler = std::cell::Cell::new(Some(shell_handler));
     dialog.connect_closed(move |_| {
+        if let Some(h) = shell_handler.take() {
+            shell_settings.disconnect(h);
+        }
         if let Some(h) = handler.take() {
             s.disconnect(h);
         }
     });
     dialog.present(Some(parent));
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    #[ignore = "requires a GNOME session with the Térmica extension installed"]
+    fn reopening_restores_hidden_icon() {
+        let context = glib::MainContext::new();
+        context.with_thread_default(|| context.block_on(async {
+            let settings = settings().expect("installed extension settings");
+            let items = settings.strv("panel-items");
+            let was_enabled = extension_enabled();
+            set_extension_enabled(false).await.expect("hide the tray icon");
+            for _ in 0..40 {
+                if !extension_enabled() { break; }
+                glib::timeout_future(Duration::from_millis(50)).await;
+            }
+            let hidden = !extension_enabled();
+            restore_on_open();
+            for _ in 0..40 {
+                if extension_enabled() { break; }
+                glib::timeout_future(Duration::from_millis(50)).await;
+            }
+            let restored = extension_enabled();
+            // Restore the user's original visibility before reporting a failure.
+            set_extension_enabled(was_enabled).await.expect("restore original visibility");
+            assert!(hidden, "closing from the tray should hide the icon");
+            assert!(restored, "opening the app should re-enable the icon");
+            assert_eq!(settings.strv("panel-items"), items, "selected metrics must be preserved");
+        })).unwrap();
+    }
 }

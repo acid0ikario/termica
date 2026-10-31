@@ -137,7 +137,6 @@
   "Profiles": "Perfiles",
   "Open Térmica…": "Abrir Térmica…",
   "Quit Térmica": "Salir de Térmica",
-  "Icon hidden. Your profile stays active. To show it again, open Térmica → thermometer button → “Show icon in top bar”.": "Icono oculto. Tu perfil sigue activo. Para volver a mostrarlo abre la app Térmica → botón del termómetro → «Mostrar icono en la barra».",
   "The termicad service is not running": "El servicio termicad no está corriendo",
   "yes": "sí",
   "no": "no",
@@ -171,5 +170,6 @@
   "Discard and restart": "Descartar y reiniciar",
   "Could not restart Térmica": "No se pudo reiniciar Térmica",
   "Close": "Cerrar",
-  "The service restart command failed.": "Falló el comando para reiniciar el servicio."
+  "The service restart command failed.": "Falló el comando para reiniciar el servicio.",
+  "Icon hidden. Your profile stays active. Open Térmica again to restore the top bar icon.": "Icono oculto. Tu perfil sigue activo. Vuelve a abrir Térmica para mostrar el icono en la barra."
 }

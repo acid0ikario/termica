@@ -288,7 +288,7 @@ class TermicaButton extends PanelMenu.Button {
         const uuid = this._ext.uuid;
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             Main.extensionManager.disableExtension(uuid);
-            Main.notify('Térmica', tr("Icon hidden. Your profile stays active. To show it again, open Térmica → thermometer button → “Show icon in top bar”."));
+            Main.notify('Térmica', tr("Icon hidden. Your profile stays active. Open Térmica again to restore the top bar icon."));
             return GLib.SOURCE_REMOVE;
         });
     }

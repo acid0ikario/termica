@@ -92,6 +92,7 @@ fn main() -> glib::ExitCode {
     let windows: Rc<RefCell<Option<Rc<window::Window>>>> = Rc::new(RefCell::new(None));
     let open_bar = std::cell::Cell::new(open_bar);
     app.connect_activate(move |app| {
+        panel::restore_on_open();
         if let Some(w) = windows.borrow().as_ref() {
             w.win.present();
             return;
