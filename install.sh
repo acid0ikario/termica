@@ -58,7 +58,7 @@ echo "→ Extensión de GNOME"
 EXT=termica@ikario
 DEST="$HOME/.local/share/gnome-shell/extensions/$EXT"
 rm -rf "$DEST"; mkdir -p "$DEST"
-for f in metadata.json extension.js metrics.js prefs.js prefsui.js stylesheet.css stylesheet-light.css icons schemas; do
+for f in metadata.json extension.js metrics.js prefs.js prefsui.js stylesheet-dark.css stylesheet-light.css icons schemas; do
     cp -r "extension/$EXT/$f" "$DEST/"
 done
 glib-compile-schemas "$DEST/schemas"
