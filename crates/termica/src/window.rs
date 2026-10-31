@@ -26,6 +26,17 @@ const SHIFT_OPTIONS: &[(Option<ShiftMode>, &str)] = &[
     (Some(ShiftMode::Turbo), "Turbo"),
 ];
 
+/// Qué hace cada modo del firmware (medido en el Stealth 15M; «performance» lo anuncia el
+/// firmware pero msi-ec lo rechaza, por eso no aparece).
+fn shift_hint(mode: Option<ShiftMode>) -> &'static str {
+    match mode {
+        None => "Térmica no lo toca: se queda el que tenga el portátil (el último que se puso)",
+        Some(ShiftMode::Eco) => "El más limitado: ventiladores con el tope más bajo, para silencio y batería",
+        Some(ShiftMode::Comfort) => "Pone tope a los ventiladores (unas 4200 rpm), aunque la curva pida más",
+        Some(ShiftMode::Turbo) => "Sin tope: los ventiladores pueden llegar a lo que pida la curva",
+    }
+}
+
 fn index_of<T: PartialEq>(options: &[(T, &str)], value: &T) -> u32 {
     options.iter().position(|(v, _)| v == value).unwrap_or(0) as u32
 }
@@ -264,9 +275,13 @@ impl Window {
             adw::SwitchRow::builder().title("Cooler Boost").subtitle("Ventiladores al máximo todo el tiempo").build();
         let shift_combo = adw::ComboRow::builder()
             .title("Modo del firmware MSI")
-            .subtitle("Ajuste interno del portátil (Eco, Comfort o Turbo)")
+            .subtitle(shift_hint(None))
+            .subtitle_lines(2)
             .model(&labels(SHIFT_OPTIONS))
             .build();
+        shift_combo.connect_selected_notify(|row| {
+            row.set_subtitle(shift_hint(SHIFT_OPTIONS[row.selected() as usize].0));
+        });
         let auto_boost = adw::SwitchRow::builder()
             .title("Cooler Boost automático")
             .subtitle("Lo enciende un rato cuando la CPU o la GPU se calientan, para que no se disparen")
