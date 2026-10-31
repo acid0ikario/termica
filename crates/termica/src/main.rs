@@ -8,6 +8,7 @@ mod i18n;
 mod client;
 mod curve;
 mod panel;
+mod restart;
 mod window;
 
 use std::cell::{Cell, RefCell};
@@ -36,10 +37,37 @@ fn main() -> glib::ExitCode {
     let restart = gio::SimpleAction::new("restart", None);
     let restart_requested = restarting.clone();
     let weak_app = app.downgrade();
-    restart.connect_activate(move |_, _| {
+    restart.connect_activate(move |action, _| {
         if let Some(app) = weak_app.upgrade() {
-            restart_requested.set(true);
-            app.quit();
+            action.set_enabled(false);
+            let window = app.active_window();
+            if let Some(window) = &window {
+                window.set_sensitive(false);
+                window.set_cursor_from_name(Some("wait"));
+            }
+            let action = action.clone();
+            let restart_requested = restart_requested.clone();
+            glib::spawn_future_local(async move {
+                match restart::service().await {
+                    Ok(()) => {
+                        restart_requested.set(true);
+                        app.quit();
+                    }
+                    Err(error) => {
+                        action.set_enabled(true);
+                        if let Some(window) = &window {
+                            window.set_sensitive(true);
+                            window.set_cursor_from_name(None);
+                        }
+                        let dialog = adw::AlertDialog::new(
+                            Some(i18n::tr("Could not restart Térmica")),
+                            Some(&error),
+                        );
+                        dialog.add_response("close", i18n::tr("Close"));
+                        dialog.present(window.as_ref());
+                    }
+                }
+            });
         }
     });
     app.add_action(&restart);

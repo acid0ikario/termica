@@ -491,6 +491,9 @@ impl Window {
         ));
         *w.poll.borrow_mut() = Some(id);
         w.win.connect_close_request(clone!(#[weak] w, #[upgrade_or] glib::Propagation::Proceed, move |_| {
+            if w.win.application().and_then(|app| app.lookup_action("restart")).is_some_and(|action| !action.is_enabled()) {
+                return glib::Propagation::Stop;
+            }
             if let Some(id) = w.poll.borrow_mut().take() {
                 id.remove();
             }

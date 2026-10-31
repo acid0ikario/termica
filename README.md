@@ -31,7 +31,9 @@ for other locales. The preference is shared by the app and extension and stored 
 `$XDG_CONFIG_HOME/termica/language` (normally `~/.config/termica/language`).
 
 Use **Restart Térmica** in the app menu to apply a language change, then reopen extension preferences.
-The app asks before discarding unsaved profile changes when restarting. The extension menu updates
+Restarting first restarts `termicad` and reapplies the saved active profile, then reopens the app.
+System authorization may be requested. If restarting the service fails, the app stays open and shows the error.
+The app asks before discarding unsaved profile changes; temporary Cooler/Turbo Boost overrides reset when the service restarts. The extension menu updates
 the next time it opens. Profile names are user data and are not translated automatically.
 Desktop launcher descriptions and authorization prompts follow the system language.
 
@@ -162,6 +164,8 @@ crates/termica/       app (gtk4-rs, libadwaita-rs)
 extension/            GNOME Shell extension (GJS)
 data/                 systemd, D-Bus, polkit, launcher, icon and default profiles
 ```
+
+In development mode (`TERMICA_DEV=1`), restarting the app leaves the system service untouched.
 
 English strings live in the UI code; Spanish translations are shared in
 `extension/termica@ikario/es.json`. The app embeds this catalog at build time, and the installer copies it

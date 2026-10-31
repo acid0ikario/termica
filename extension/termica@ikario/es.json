@@ -168,5 +168,8 @@
   "Restart Térmica": "Reiniciar Térmica",
   "Restart Térmica?": "¿Reiniciar Térmica?",
   "You have unsaved changes. Restarting will discard them.": "Tienes cambios sin guardar. Al reiniciar se descartarán.",
-  "Discard and restart": "Descartar y reiniciar"
+  "Discard and restart": "Descartar y reiniciar",
+  "Could not restart Térmica": "No se pudo reiniciar Térmica",
+  "Close": "Cerrar",
+  "The service restart command failed.": "Falló el comando para reiniciar el servicio."
 }
