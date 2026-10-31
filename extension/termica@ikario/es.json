@@ -171,5 +171,8 @@
   "Could not restart Térmica": "No se pudo reiniciar Térmica",
   "Close": "Cerrar",
   "The service restart command failed.": "Falló el comando para reiniciar el servicio.",
-  "Icon hidden. Your profile stays active. Open Térmica again to restore the top bar icon.": "Icono oculto. Tu perfil sigue activo. Vuelve a abrir Térmica para mostrar el icono en la barra."
+  "Icon hidden. Your profile stays active. Open Térmica again to restore the top bar icon.": "Icono oculto. Tu perfil sigue activo. Vuelve a abrir Térmica para mostrar el icono en la barra.",
+  "CPU POWER": "POTENCIA CPU",
+  "GPU POWER": "POTENCIA GPU",
+  "CPU power consumption": "consumo del procesador"
 }

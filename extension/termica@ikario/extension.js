@@ -216,10 +216,10 @@ class TermicaButton extends PanelMenu.Button {
             vram: new Card(tr("GPU MEMORY"), true),
             fanCpu: new Card(tr("CPU FAN"), true),
             fanGpu: new Card(tr("GPU FAN"), true),
-            ram: new Card(tr("RAM"), true),
-            power: new Card(tr("POWER")),
+            cpuPower: new Card(tr("CPU POWER")),
+            power: new Card(tr("GPU POWER")),
         };
-        const rows = [['cpu', 'gpu'], ['clock', 'vram'], ['fanCpu', 'fanGpu'], ['ram', 'power']];
+        const rows = [['cpu', 'gpu'], ['clock', 'vram'], ['fanCpu', 'fanGpu'], ['cpuPower', 'power']];
         for (const [a, b] of rows) {
             const row = new St.BoxLayout({style_class: 'termica-row', x_expand: true});
             row.add_child(this.cards[a].actor);
@@ -443,8 +443,7 @@ class TermicaButton extends PanelMenu.Button {
                 `RPM · ${s.cpu_fan ?? 0}%`, {frac: (s.cpu_fan ?? 0) / 100});
             c.fanGpu.set(s.gpu_rpm ? `${s.gpu_rpm}` : `${s.gpu_fan ?? 0}%`,
                 `RPM · ${s.gpu_fan ?? 0}%`, {frac: (s.gpu_fan ?? 0) / 100});
-            if (s.ram_total)
-                c.ram.set(`${s.ram_used} GB`, `${tr('of')} ${s.ram_total} GB`, {frac: s.ram_used / s.ram_total});
+            c.cpuPower.set(formatMetric('cpu-power', s), tr('CPU power consumption'));
 
             const mode = {auto: tr("automatic"), advanced: tr("custom curve"), silent: tr("quiet")}[s.fan_mode] ??
                 s.fan_mode;
