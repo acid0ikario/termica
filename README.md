@@ -28,7 +28,7 @@ Desde la app (botón del termómetro) o desde el menú del icono eliges qué mos
 
 ![Elegir qué mostrar](docs/barra-app.png)
 
-La ventana de preferencias de la extensión incluye una vista previa:
+También se puede configurar desde las preferencias de la extensión; los cambios se aplican al instante en la barra:
 
 ![Preferencias de la extensión](docs/preferencias.png)
 
