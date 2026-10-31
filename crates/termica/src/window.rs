@@ -158,6 +158,7 @@ impl Window {
             languages.append(Some(tr(label)), Some(&format!("win.language::{}", code)));
         }
         menu.append_submenu(Some(tr("Language")), &languages);
+        menu.append(Some(tr("Restart Térmica")), Some("win.restart"));
         let menu_btn = gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic")
             .tooltip_text(tr("Menu"))
@@ -349,6 +350,7 @@ impl Window {
         let unavailable_header = adw::HeaderBar::new();
         let language_menu = gio::Menu::new();
         language_menu.append_submenu(Some(tr("Language")), &languages);
+        language_menu.append(Some(tr("Restart Térmica")), Some("win.restart"));
         unavailable_header.pack_end(&gtk::MenuButton::builder()
             .icon_name("open-menu-symbolic").tooltip_text(tr("Menu"))
             .menu_model(&language_menu).build());
@@ -466,6 +468,9 @@ impl Window {
             }
         }));
         w.win.add_action(&language);
+        let restart = gio::SimpleAction::new("restart", None);
+        restart.connect_activate(clone!(#[weak] w, move |_, _| w.confirm_restart()));
+        w.win.add_action(&restart);
         bar_btn.connect_clicked(clone!(#[weak] w, move |_| w.open_panel_dialog()));
 
         w.client.connect_signal(clone!(#[weak] w, move |name| {
@@ -709,6 +714,29 @@ impl Window {
                 w.split.set_show_content(true);
             } else if let Some(sel) = w.model.borrow().selected.clone() {
                 w.select_row(&sel);
+            }
+        });
+    }
+
+    fn confirm_restart(self: &Rc<Self>) {
+        let Some(app) = self.win.application() else { return };
+        if !self.dirty.get() {
+            app.activate_action("restart", None);
+            return;
+        }
+        let dialog = adw::AlertDialog::new(
+            Some(tr("Restart Térmica?")),
+            Some(tr("You have unsaved changes. Restarting will discard them.")),
+        );
+        dialog.add_response("cancel", tr("Cancel"));
+        dialog.add_response("restart", tr("Discard and restart"));
+        dialog.set_close_response("cancel");
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_response_appearance("restart", adw::ResponseAppearance::Destructive);
+        let w = self.clone();
+        glib::spawn_future_local(async move {
+            if dialog.choose_future(Some(&w.win)).await == "restart" {
+                app.activate_action("restart", None);
             }
         });
     }

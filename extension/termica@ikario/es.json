@@ -164,5 +164,9 @@
   "Fans:": "Ventiladores:",
   "Could not activate": "No se pudo activar",
   "activated with warnings:": "activado con avisos:",
-  "Térmica needs the termicad service.\nStart it with: sudo systemctl start termicad": "Térmica necesita el servicio termicad.\nEjecútalo con: sudo systemctl start termicad"
+  "Térmica needs the termicad service.\nStart it with: sudo systemctl start termicad": "Térmica necesita el servicio termicad.\nEjecútalo con: sudo systemctl start termicad",
+  "Restart Térmica": "Reiniciar Térmica",
+  "Restart Térmica?": "¿Reiniciar Térmica?",
+  "You have unsaved changes. Restarting will discard them.": "Tienes cambios sin guardar. Al reiniciar se descartarán.",
+  "Discard and restart": "Descartar y reiniciar"
 }

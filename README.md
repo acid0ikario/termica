@@ -30,7 +30,8 @@ English is the default. Choose **Language → English / Spanish / System** from 
 for other locales. The preference is shared by the app and extension and stored in
 `$XDG_CONFIG_HOME/termica/language` (normally `~/.config/termica/language`).
 
-Restart the app and reopen extension preferences after changing the language. The extension menu updates
+Use **Restart Térmica** in the app menu to apply a language change, then reopen extension preferences.
+The app asks before discarding unsaved profile changes when restarting. The extension menu updates
 the next time it opens. Profile names are user data and are not translated automatically.
 Desktop launcher descriptions and authorization prompts follow the system language.
 

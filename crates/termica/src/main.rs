@@ -10,7 +10,8 @@ mod curve;
 mod panel;
 mod window;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::os::unix::process::CommandExt;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -31,6 +32,17 @@ const CSS: &str = "
 fn main() -> glib::ExitCode {
     let open_bar = std::env::args().any(|a| a == "--barra");
     let app = adw::Application::builder().application_id(APP_ID).build();
+    let restarting = Rc::new(Cell::new(false));
+    let restart = gio::SimpleAction::new("restart", None);
+    let restart_requested = restarting.clone();
+    let weak_app = app.downgrade();
+    restart.connect_activate(move |_, _| {
+        if let Some(app) = weak_app.upgrade() {
+            restart_requested.set(true);
+            app.quit();
+        }
+    });
+    app.add_action(&restart);
     if std::env::var_os("TERMICA_SCREENSHOT").is_some() {
         // la captura de desarrollo no debe cederle el paso a una ventana ya abierta
         app.set_flags(gio::ApplicationFlags::NON_UNIQUE);
@@ -81,7 +93,18 @@ fn main() -> glib::ExitCode {
 
     // los argumentos propios no se pasan a GTK
     let args: Vec<String> = std::env::args().filter(|a| a != "--barra").collect();
-    app.run_with_args(&args)
+    let exit_code = app.run_with_args(&args);
+    if restarting.get() {
+        // Replace this process only after GTK has exited, so the new instance
+        // cannot forward activation to the window that is shutting down.
+        let error = match std::env::current_exe() {
+            Ok(exe) => std::process::Command::new(exe).args(std::env::args_os().skip(1)).exec(),
+            Err(error) => error,
+        };
+        eprintln!("Could not restart Térmica: {error}");
+        return glib::ExitCode::FAILURE;
+    }
+    exit_code
 }
 
 /// Uso de desarrollo: guarda la ventana como PNG y sale.
