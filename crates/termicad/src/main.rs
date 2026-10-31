@@ -8,7 +8,7 @@ mod service;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 use service::{Config, State, Termica, apply_active, load_store};
@@ -68,6 +68,56 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 was_awake = awake;
+            }
+        });
+    }
+
+    // Cooler Boost automático: se enciende al llegar a `boost_at` y se apaga `boost_secs` después de
+    // bajar de esa temperatura, para que el EC no llegue a su último tramo (que mantiene los
+    // ventiladores altos hasta que todo se enfría mucho).
+    {
+        let (state, cfg) = (state.clone(), cfg.clone());
+        tokio::spawn(async move {
+            let set = |on: bool| {
+                if cfg.dev {
+                    log::info!("[dev] cooler_boost = {on}");
+                } else if let Err(e) = hw::set_cooler_boost(on) {
+                    log::warn!("Cooler Boost automático: {e}");
+                }
+            };
+            let mut until: Option<Instant> = None;
+            loop {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                let (at, secs, manual) = {
+                    let s = state.lock().unwrap();
+                    let f = &s.store.active_profile().fans;
+                    (f.boost_at, f.boost_secs, f.cooler_boost || s.overrides.get("cooler_boost") == Some(&true))
+                };
+                let now = Instant::now();
+                let temp = hw::hottest();
+                match at {
+                    // encendido a mano o desactivado: no se toca (el perfil ya dejó el boost como va)
+                    _ if manual => until = None,
+                    None => until = None,
+                    Some(at) if temp.is_some_and(|t| t >= at as i64) => {
+                        if until.is_none() {
+                            log::info!("{}° ≥ {at}°: enciendo el Cooler Boost", temp.unwrap_or(0));
+                        }
+                        // se vuelve a escribir por si algo lo apagó (cambio de perfil, suspensión)
+                        if !hw::cooler_boost_on() {
+                            set(true);
+                        }
+                        until = Some(now + Duration::from_secs(secs as u64));
+                    }
+                    Some(_) => {
+                        if until.is_some_and(|u| now >= u) {
+                            log::info!("{}°: apago el Cooler Boost", temp.unwrap_or(0));
+                            set(false);
+                            until = None;
+                        }
+                    }
+                }
+                state.lock().unwrap().auto_boost = until.is_some();
             }
         });
     }

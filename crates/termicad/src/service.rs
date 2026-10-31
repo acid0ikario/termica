@@ -32,6 +32,8 @@ pub struct State {
     pub store: Store,
     /// Cambios rápidos desde la barra (cooler_boost, turbo), hasta el próximo cambio de perfil.
     pub overrides: BTreeMap<String, bool>,
+    /// El Cooler Boost automático lo tiene encendido ahora mismo.
+    pub auto_boost: bool,
     energy: Option<(Instant, i64)>,
     cpu_watts: Option<f64>,
     nv_cache: Option<(Instant, Map<String, Value>)>,
@@ -39,7 +41,7 @@ pub struct State {
 
 impl State {
     pub fn new(store: Store) -> Self {
-        Self { store, overrides: BTreeMap::new(), energy: None, cpu_watts: None, nv_cache: None }
+        Self { store, overrides: BTreeMap::new(), auto_boost: false, energy: None, cpu_watts: None, nv_cache: None }
     }
 }
 
@@ -248,7 +250,11 @@ impl Termica {
         {
             m.extend(nv);
         }
-        m.insert("overrides".into(), json!(self.state.lock().unwrap().overrides));
+        {
+            let s = self.state.lock().unwrap();
+            m.insert("overrides".into(), json!(s.overrides));
+            m.insert("auto_boost".into(), json!(s.auto_boost));
+        }
         Value::Object(m).to_string()
     }
 

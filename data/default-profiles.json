@@ -16,6 +16,8 @@
       "fans": {
         "mode": "advanced",
         "cooler_boost": false,
+        "boost_at": 83,
+        "boost_secs": 30,
         "curves": {
           "cpu": {
             "temps": [
@@ -74,6 +76,8 @@
       "fans": {
         "mode": "advanced",
         "cooler_boost": false,
+        "boost_at": 83,
+        "boost_secs": 30,
         "curves": {
           "cpu": {
             "temps": [

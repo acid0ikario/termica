@@ -24,6 +24,10 @@ pub const SPEED_MAX: u32 = 150;
 /// Seguridad: el último tramo de la curva nunca por debajo de esto.
 pub const LAST_SPEED_MIN: u32 = 70;
 pub const NAME_MAX: usize = 40;
+/// Cooler Boost automático: temperatura a la que se enciende y segundos que se mantiene.
+pub const BOOST_TEMP_RANGE: (u32, u32) = (60, 95);
+pub const BOOST_SECS_RANGE: (u32, u32) = (5, 120);
+pub const BOOST_SECS_DEFAULT: u32 = 30;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -112,8 +116,18 @@ pub struct Fans {
     pub mode: FanMode,
     #[serde(default)]
     pub cooler_boost: bool,
+    /// Cooler Boost automático: se enciende cuando la CPU o la GPU llegan a esta temperatura
+    /// y se apaga `boost_secs` segundos después de que baje de ella. `None` = desactivado.
+    #[serde(default)]
+    pub boost_at: Option<u32>,
+    #[serde(default = "boost_secs_default")]
+    pub boost_secs: u32,
     #[serde(default)]
     pub curves: Curves,
+}
+
+fn boost_secs_default() -> u32 {
+    BOOST_SECS_DEFAULT
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -226,6 +240,10 @@ impl Profile {
         if p.cpu.pl2 < p.cpu.pl1 {
             return Err("CPU: la potencia de ráfaga (PL2) no puede ser menor que la sostenida (PL1)".into());
         }
+        if let Some(at) = p.fans.boost_at {
+            check_range(at, BOOST_TEMP_RANGE, "Cooler Boost automático, temperatura")?;
+        }
+        check_range(p.fans.boost_secs, BOOST_SECS_RANGE, "Cooler Boost automático, segundos")?;
         p.fans.curves.cpu.validate("Curva CPU")?;
         p.fans.curves.gpu.validate("Curva GPU")?;
         Ok(p)
@@ -249,6 +267,8 @@ impl Profile {
         }
         if self.fans.cooler_boost {
             parts.push("cooler boost".into());
+        } else if let Some(at) = self.fans.boost_at {
+            parts.push(format!("boost a {at}°"));
         }
         parts.join(" · ")
     }
@@ -370,5 +390,21 @@ mod tests {
         let p: Profile = serde_json::from_str(json).unwrap();
         assert!(p.cpu.turbo);
         assert_eq!(p.fans.curves, factory_curves());
+    }
+
+    #[test]
+    fn auto_boost() {
+        // los perfiles guardados antes de esta opción la traen apagada
+        let json = r#"{"name":"x","cpu":{"pl1":10,"pl2":20},"fans":{"mode":"auto"}}"#;
+        let p: Profile = serde_json::from_str(json).unwrap();
+        assert_eq!((p.fans.boost_at, p.fans.boost_secs), (None, BOOST_SECS_DEFAULT));
+
+        let mut p = store().profiles[0].clone();
+        assert_eq!(p.fans.boost_at, Some(83));
+        p.fans.boost_at = Some(99);
+        assert!(p.validated().is_err());
+        p.fans.boost_at = Some(80);
+        p.fans.boost_secs = 0;
+        assert!(p.validated().is_err());
     }
 }

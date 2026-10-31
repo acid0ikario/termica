@@ -77,6 +77,16 @@ pub fn cpu_temp() -> Option<i64> {
         .or_else(|| read_int(format!("{MSI}/cpu/realtime_temperature")))
 }
 
+/// La temperatura más alta entre CPU y GPU (la de la GPU sale del EC: no la despierta).
+pub fn hottest() -> Option<i64> {
+    let gpu = read_int(format!("{MSI}/gpu/realtime_temperature"));
+    cpu_temp().max(gpu)
+}
+
+pub fn cooler_boost_on() -> bool {
+    read(format!("{MSI}/cooler_boost")).as_deref() == Some("on")
+}
+
 // ------------------------------------------------------------------ EC
 
 fn ensure_ec() {

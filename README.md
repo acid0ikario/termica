@@ -19,6 +19,7 @@ Cada perfil controla:
 - **GPU NVIDIA:** velocidad máxima del núcleo y de la memoria (vía NVML, la librería oficial de NVIDIA).
 - **CPU Intel:** potencia sostenida y de ráfaga (PL1/PL2, vía RAPL) y Turbo Boost.
 - **Ventiladores MSI:** modo automático de fábrica o curva personalizada (CPU y GPU), Cooler Boost y modo del firmware (Eco/Comfort/Turbo).
+- **Cooler Boost automático:** se enciende un rato cuando la CPU o la GPU llegan a cierta temperatura (83 °C por defecto) y se apaga unos segundos después de que baje, para que los ventiladores no se queden al máximo hasta que todo se enfríe mucho.
 
 Vienen tres perfiles de ejemplo: **Silencioso**, **Balanceado** y **Fábrica**.
 

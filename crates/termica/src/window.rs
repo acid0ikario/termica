@@ -8,7 +8,9 @@ use adw::prelude::*;
 use gtk::gio;
 use gtk::glib::{self, clone};
 use serde_json::Value;
-use termica_core::{Cpu, Curves, FanMode, Fans, Gpu, Profile, ShiftMode, Store, default_profile};
+use termica_core::{
+    BOOST_SECS_RANGE, BOOST_TEMP_RANGE, Cpu, Curves, FanMode, Fans, Gpu, Profile, ShiftMode, Store, default_profile,
+};
 
 use crate::client::Client;
 use crate::curve::CurveEditor;
@@ -106,6 +108,9 @@ pub struct Window {
     turbo: adw::SwitchRow,
     fan_combo: adw::ComboRow,
     boost: adw::SwitchRow,
+    auto_boost: adw::SwitchRow,
+    boost_at: adw::SpinRow,
+    boost_secs: adw::SpinRow,
     shift_combo: adw::ComboRow,
     curve_group: adw::PreferencesGroup,
     curve: CurveEditor,
@@ -262,8 +267,21 @@ impl Window {
             .subtitle("Ajuste interno del portátil (Eco, Comfort o Turbo)")
             .model(&labels(SHIFT_OPTIONS))
             .build();
+        let auto_boost = adw::SwitchRow::builder()
+            .title("Cooler Boost automático")
+            .subtitle("Lo enciende un rato cuando la CPU o la GPU se calientan, para que no se disparen")
+            .build();
+        let boost_at = adw::SpinRow::with_range(BOOST_TEMP_RANGE.0 as f64, BOOST_TEMP_RANGE.1 as f64, 1.0);
+        boost_at.set_title("Encender a partir de");
+        boost_at.set_subtitle("°C, en la CPU o la GPU");
+        let boost_secs = adw::SpinRow::with_range(BOOST_SECS_RANGE.0 as f64, BOOST_SECS_RANGE.1 as f64, 5.0);
+        boost_secs.set_title("Mantener encendido");
+        boost_secs.set_subtitle("Segundos después de bajar de esa temperatura");
         g.add(&fan_combo);
         g.add(&boost);
+        g.add(&auto_boost);
+        g.add(&boost_at);
+        g.add(&boost_secs);
         g.add(&shift_combo);
         page.add(&g);
 
@@ -356,6 +374,9 @@ impl Window {
             turbo,
             fan_combo,
             boost,
+            auto_boost,
+            boost_at,
+            boost_secs,
             shift_combo,
             curve_group,
             curve,
@@ -366,10 +387,10 @@ impl Window {
         // ---------- señales
         let changed = clone!(#[weak] w, move || w.changed());
         w.name_row.connect_changed(clone!(#[strong] changed, move |_| changed()));
-        for row in [&w.core_switch, &w.turbo, &w.boost] {
+        for row in [&w.core_switch, &w.turbo, &w.boost, &w.auto_boost] {
             row.connect_active_notify(clone!(#[strong] changed, move |_| changed()));
         }
-        for row in [&w.core_spin, &w.pl1, &w.pl2] {
+        for row in [&w.core_spin, &w.pl1, &w.pl2, &w.boost_at, &w.boost_secs] {
             row.connect_value_notify(clone!(#[strong] changed, move |_| changed()));
         }
         for row in [&w.mem_combo, &w.fan_combo, &w.shift_combo] {
@@ -529,6 +550,9 @@ impl Window {
         self.turbo.set_active(p.cpu.turbo);
         self.fan_combo.set_selected(index_of(FAN_OPTIONS, &p.fans.mode));
         self.boost.set_active(p.fans.cooler_boost);
+        self.auto_boost.set_active(p.fans.boost_at.is_some());
+        self.boost_at.set_value(p.fans.boost_at.unwrap_or(83) as f64);
+        self.boost_secs.set_value(p.fans.boost_secs as f64);
         self.shift_combo.set_selected(index_of(SHIFT_OPTIONS, &p.shift_mode));
         {
             let mut m = self.model.borrow_mut();
@@ -571,6 +595,11 @@ impl Window {
                 "Ya tiene sus valores por defecto"
             }));
         }
+        // con el Cooler Boost siempre encendido, el automático no tiene sentido
+        self.auto_boost.set_sensitive(!self.boost.is_active());
+        let auto = self.auto_boost.is_active() && !self.boost.is_active();
+        self.boost_at.set_visible(auto);
+        self.boost_secs.set_visible(auto);
         self.curve_group.set_visible(FAN_OPTIONS[self.fan_combo.selected() as usize].0 == FanMode::Advanced);
     }
 
@@ -587,6 +616,8 @@ impl Window {
             fans: Fans {
                 mode: FAN_OPTIONS[self.fan_combo.selected() as usize].0,
                 cooler_boost: self.boost.is_active(),
+                boost_at: self.auto_boost.is_active().then(|| self.boost_at.value() as u32),
+                boost_secs: self.boost_secs.value() as u32,
                 curves: m.curves.clone().unwrap_or_default(),
             },
             shift_mode: SHIFT_OPTIONS[self.shift_combo.selected() as usize].0,
@@ -829,7 +860,11 @@ impl Window {
                 Some(other) => other,
                 None => "",
             };
-            let boost = if s["cooler_boost"].as_bool() == Some(true) { " · boost" } else { "" };
+            let boost = match (s["cooler_boost"].as_bool(), s["auto_boost"].as_bool()) {
+                (Some(true), Some(true)) => " · boost auto",
+                (Some(true), _) => " · boost",
+                _ => "",
+            };
             w.st_fan.set(
                 &format!("{}%", int("cpu_fan").unwrap_or(0)),
                 &format!("CPU · GPU {}% · {mode}{boost}", int("gpu_fan").unwrap_or(0)),
