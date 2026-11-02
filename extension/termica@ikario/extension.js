@@ -260,6 +260,12 @@ class TermicaButton extends PanelMenu.Button {
         for (const m of METRICS) {
             const item = new PopupMenu.PopupSwitchMenuItem(m.title, false);
             item.insert_child_at_index(new St.Icon({gicon: this._icon(m.icon), style_class: 'popup-menu-icon'}), 1);
+            // GNOME cierra el menú tras cambiar un interruptor; aquí solo se cambia, para poder
+            // marcar o desmarcar varias métricas seguidas
+            item.activate = () => {
+                if (item._switch.mapped)
+                    item.toggle();
+            };
             item.connect('toggled', (_i, state) => {
                 if (this._syncing)
                     return;
