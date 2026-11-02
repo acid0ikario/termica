@@ -354,7 +354,8 @@ class TermicaButton extends PanelMenu.Button {
         for (const p of profiles.filter(x => x.id === active || !hidden.includes(x.id))) {
             const item = new PopupMenu.PopupMenuItem(p.name);
             item.setOrnament(p.id === active ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
-            item.connect('activate', () => this._activate(p));
+            // activar sin cerrar el menú (GNOME lo cierra al pulsar un elemento)
+            item.activate = () => this._activate(p);
             this._profiles.addMenuItem(item);
         }
     }
