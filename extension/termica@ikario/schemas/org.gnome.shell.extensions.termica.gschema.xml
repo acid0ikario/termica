@@ -18,5 +18,9 @@
       <default>3</default>
       <summary>Seconds between top bar updates</summary>
     </key>
+    <key name="hidden-profiles" type="as">
+      <default>[]</default>
+      <summary>Profile IDs hidden from the top bar menu</summary>
+    </key>
   </schema>
 </schemalist>

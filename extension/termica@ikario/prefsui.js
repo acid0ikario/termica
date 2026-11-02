@@ -2,6 +2,8 @@ import {tr, setLanguage, language} from './i18n.js';
 // Ventana de preferencias (se separa de prefs.js para poder probarla fuera de GNOME Shell)
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
 import {METRICS, DEFAULT_ITEMS} from './metrics.js';
@@ -71,6 +73,47 @@ export function buildPrefs(window, settings, path) {
         }
     };
 
+    // ---- profiles in the menu
+    const profilesGroup = new Adw.PreferencesGroup({
+        title: tr("Profiles in the menu"),
+        description: tr("Choose which profiles appear in the top bar menu. The active profile is always shown."),
+    });
+    page.add(profilesGroup);
+    const profileRows = new Map();
+    const syncProfileRows = () => {
+        const hidden = settings.get_strv('hidden-profiles');
+        for (const [id, row] of profileRows) {
+            if (row.active !== !hidden.includes(id))
+                row.active = !hidden.includes(id);
+        }
+    };
+    Gio.DBus.system.call('com.ikario.Termica1', '/com/ikario/Termica1', 'com.ikario.Termica1',
+        'GetProfiles', null, new GLib.VariantType('(s)'), Gio.DBusCallFlags.NONE, 5000, null, (bus, res) => {
+            let profiles;
+            try {
+                profiles = JSON.parse(bus.call_finish(res).deepUnpack()[0]).profiles;
+            } catch {
+                profilesGroup.add(new Adw.ActionRow({title: tr("The termicad service is not running")}));
+                return;
+            }
+            for (const p of profiles) {
+                const row = new Adw.SwitchRow({title: p.name});
+                row.connect('notify::active', () => {
+                    const hidden = new Set(settings.get_strv('hidden-profiles'));
+                    if (row.active)
+                        hidden.delete(p.id);
+                    else
+                        hidden.add(p.id);
+                    const list = [...hidden];
+                    if (list.sort().join() !== settings.get_strv('hidden-profiles').sort().join())
+                        settings.set_strv('hidden-profiles', list);
+                });
+                profileRows.set(p.id, row);
+                profilesGroup.add(row);
+            }
+            syncProfileRows();
+        });
+
     // ---- formato
     const fmtGroup = new Adw.PreferencesGroup({title: tr("Format")});
     const labelsRow = new Adw.SwitchRow({
@@ -96,13 +139,16 @@ export function buildPrefs(window, settings, path) {
     const resetGroup = new Adw.PreferencesGroup();
     const reset = new Adw.ButtonRow({title: tr("Reset defaults"), start_icon_name: 'edit-undo-symbolic'});
     reset.connect('activated', () => {
-        for (const key of ['panel-items', 'show-labels', 'color-temps', 'interval'])
+        for (const key of ['panel-items', 'show-labels', 'color-temps', 'interval', 'hidden-profiles'])
             settings.reset(key);
     });
     resetGroup.add(reset);
     page.add(resetGroup);
 
-    const id = settings.connect('changed', syncRows);
+    const id = settings.connect('changed', () => {
+        syncRows();
+        syncProfileRows();
+    });
     window.connect('close-request', () => {
         settings.disconnect(id);
         return false;

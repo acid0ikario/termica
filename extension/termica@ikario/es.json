@@ -179,5 +179,7 @@
   "CPU usage": "Uso de la CPU",
   "Swap used": "Swap usada",
   "Download speed": "Velocidad de descarga",
-  "Upload speed": "Velocidad de subida"
+  "Upload speed": "Velocidad de subida",
+  "Profiles in the menu": "Perfiles en el menú",
+  "Choose which profiles appear in the top bar menu. The active profile is always shown.": "Elige qué perfiles aparecen en el menú de la barra superior. El perfil activo se muestra siempre."
 }

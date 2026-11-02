@@ -92,6 +92,10 @@ class TermicaButton extends PanelMenu.Button {
             'changed::show-labels', () => this._buildPanel(),
             'changed::color-temps', () => this._refreshPanel(true),
             'changed::interval', () => this._startPanelTimer(),
+            'changed::hidden-profiles', () => {
+                if (this._data)
+                    this._renderProfiles();
+            },
             this);
 
         this._language = language();
@@ -339,7 +343,9 @@ class TermicaButton extends PanelMenu.Button {
         const current = profiles.find(p => p.id === active);
         this._title.text = `Térmica · ${current?.name ?? ''}`;
         this._profiles.removeAll();
-        for (const p of profiles) {
+        // the active profile is always shown, even when hidden
+        const hidden = this._settings.get_strv('hidden-profiles');
+        for (const p of profiles.filter(x => x.id === active || !hidden.includes(x.id))) {
             const item = new PopupMenu.PopupMenuItem(p.name);
             item.setOrnament(p.id === active ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
             item.connect('activate', () => this._activate(p));
