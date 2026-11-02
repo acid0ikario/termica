@@ -868,7 +868,7 @@ impl Window {
             ),
             None => (
                 tr("Restore default profiles?").to_string(),
-                tr("Quiet, Balanced and Factory return to their defaults (and reappear if deleted). Your custom profiles remain unchanged.")
+                tr("Quiet, Balanced, Performance and Factory return to their defaults (and reappear if deleted). Your custom profiles remain unchanged.")
                     .to_string(),
             ),
         };

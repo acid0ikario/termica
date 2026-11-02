@@ -122,6 +122,66 @@
       "shift_mode": null
     },
     {
+      "id": "rendimiento",
+      "name": "Performance",
+      "gpu": {
+        "core_max": null,
+        "mem_max": null
+      },
+      "cpu": {
+        "pl1": 80,
+        "pl2": 200,
+        "turbo": true
+      },
+      "fans": {
+        "mode": "advanced",
+        "cooler_boost": false,
+        "boost_at": 83,
+        "boost_secs": 30,
+        "curves": {
+          "cpu": {
+            "temps": [
+              60,
+              68,
+              74,
+              80,
+              85,
+              90
+            ],
+            "speeds": [
+              0,
+              40,
+              55,
+              72,
+              90,
+              110,
+              130
+            ]
+          },
+          "gpu": {
+            "temps": [
+              55,
+              62,
+              67,
+              72,
+              76,
+              80
+            ],
+            "speeds": [
+              0,
+              40,
+              55,
+              72,
+              90,
+              110,
+              130
+            ]
+          }
+        }
+      },
+      "shift_mode": null
+    },
+    {
       "id": "fabrica",
       "name": "Factory",
       "gpu": {

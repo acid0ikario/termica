@@ -291,7 +291,7 @@ pub fn slugify(text: &str) -> String {
 /// Perfiles iniciales (los mismos de `data/default-profiles.json`).
 pub const DEFAULT_PROFILES_JSON: &str = include_str!("../../../data/default-profiles.json");
 
-/// Los perfiles que trae Térmica (Silencioso, Balanceado y Fábrica) con sus valores por defecto.
+/// Los perfiles que trae Térmica (Silencioso, Balanceado, Rendimiento y Fábrica) con sus valores por defecto.
 pub fn default_store() -> Store {
     serde_json::from_str::<Store>(DEFAULT_PROFILES_JSON)
         .expect("default profiles")
@@ -305,7 +305,7 @@ pub fn default_profile(id: &str) -> Option<Profile> {
 }
 
 impl Store {
-    /// Devuelve los perfiles incluidos a sus valores por defecto (`None` = los tres).
+    /// Devuelve los perfiles incluidos a sus valores por defecto (`None` = todos).
     /// Los perfiles creados por el usuario no se tocan; un perfil incluido que se borró vuelve a aparecer.
     pub fn restore_defaults(&mut self, id: Option<&str>) -> Result<Vec<String>, String> {
         let defaults = default_store();
@@ -337,7 +337,7 @@ mod tests {
     fn defaults_are_valid() {
         let s = store();
         assert_eq!(s.active, "silencioso");
-        assert_eq!(s.profiles.len(), 3);
+        assert_eq!(s.profiles.len(), 4);
         assert_eq!(s.get("fabrica").unwrap().gpu.core_max, None);
     }
 

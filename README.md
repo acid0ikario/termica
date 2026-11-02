@@ -21,7 +21,7 @@ Each profile controls:
 - **MSI fans:** factory automatic mode or custom CPU/GPU curves, Cooler Boost and firmware mode (Eco/Comfort/Turbo). Comfort caps fan speeds at about 4200 rpm on the Stealth 15M even when the curve requests more; Turbo has no cap.
 - **Automatic Cooler Boost:** runs briefly when the CPU or GPU reaches a threshold (83 °C by default), then stops a few seconds after temperatures drop below it.
 
-Three example profiles are included: **Quiet**, **Balanced** and **Factory**. Existing saved profile names and IDs are preserved when updating.
+Four example profiles are included: **Quiet**, **Balanced**, **Performance** and **Factory**. Existing saved profile names and IDs are preserved when updating.
 
 ### Language
 
