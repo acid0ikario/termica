@@ -12,7 +12,7 @@ RPM, clocks and memory live from the top bar.
 |---|---|
 | **`termicad` service** (Rust, root, systemd) | Applies hardware profiles through a system bus API (`com.ikario.Termica1`). Reapplies them at startup, after suspend, when the GPU wakes and when NVIDIA loses its clock limit. Uses about 10 MB of RAM. |
 | **Térmica app** (Rust, GTK4 + libadwaita) | Creates, edits, duplicates and deletes profiles. Includes a draggable fan curve editor and live temperatures. |
-| **GNOME Shell extension** | Top bar metrics of your choice (temperatures, RPM, clocks, VRAM, RAM, power…), profile switching, Cooler Boost and Turbo Boost. |
+| **GNOME Shell extension** | Top bar metrics of your choice (temperatures, RPM, clocks, VRAM, power, CPU usage, RAM, swap, network speed…), profile switching, Cooler Boost and Turbo Boost. |
 
 Each profile controls:
 
@@ -39,7 +39,10 @@ Desktop launcher descriptions and authorization prompts follow the system langua
 
 ### Top bar
 
-Choose metrics from the app's thermometer button or the top bar menu; each metric has its own icon:
+Choose metrics from the app's thermometer button or the top bar menu; each metric has its own icon.
+CPU usage, RAM, swap and download/upload speed are read directly from `/proc` by the extension (like the
+Resources app), so they work without root and keep updating even if `termicad` is stopped. Network speed
+counts hardware interfaces only (Wi‑Fi, Ethernet, USB tethering), not loopback, VPN tunnels or containers.
 
 ![Choose top bar metrics](docs/barra-app.png)
 

@@ -175,5 +175,9 @@
   "Icon hidden. Your profile stays active. Open Térmica again to restore the top bar icon.": "Icono oculto. Tu perfil sigue activo. Vuelve a abrir Térmica para mostrar el icono en la barra.",
   "CPU POWER": "POTENCIA CPU",
   "GPU POWER": "POTENCIA GPU",
-  "CPU power consumption": "consumo del procesador"
+  "CPU power consumption": "consumo del procesador",
+  "CPU usage": "Uso de la CPU",
+  "Swap used": "Swap usada",
+  "Download speed": "Velocidad de descarga",
+  "Upload speed": "Velocidad de subida"
 }

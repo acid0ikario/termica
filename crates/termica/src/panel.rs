@@ -25,7 +25,11 @@ const METRICS: &[(&str, &str, &str, bool)] = &[
     ("gpu-mem-clock", "GPU memory clock", "wave", true),
     ("gpu-util", "GPU utilization", "activity", true),
     ("vram", "GPU memory used (VRAM)", "vram", true),
+    ("cpu-usage", "CPU usage", "activity", false),
     ("ram", "RAM used", "ram", false),
+    ("swap", "Swap used", "swap", false),
+    ("net-down", "Download speed", "download", false),
+    ("net-up", "Upload speed", "upload", false),
 ];
 
 pub fn ext_dir() -> PathBuf {

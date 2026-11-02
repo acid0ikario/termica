@@ -28,3 +28,5 @@
 /* en el menú (fondo claro) el amarillo y el rojo claros no se leen */
 .termica-value.termica-hot, .popup-menu-item .termica-hot { color: #a86b00; }
 .termica-value.termica-burn, .popup-menu-item .termica-burn { color: #c0281b; }
+/* fixed width so speed changes do not shift the top bar */
+.termica-panel-rate { min-width: 4.4em; }

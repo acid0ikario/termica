@@ -12,6 +12,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {METRICS, formatMetric, metricTemp} from './metrics.js';
+import {SystemStats} from './sysstats.js';
 
 const BUS = 'com.ikario.Termica1';
 const OBJ = '/com/ikario/Termica1';
@@ -73,6 +74,9 @@ class TermicaButton extends PanelMenu.Button {
         this._data = null;
         this._status = {};
         this._menuTimer = 0;
+        // first sample now, so CPU usage and network speeds have a baseline
+        this._sys = new SystemStats();
+        this._sys.sample();
 
         // barra superior: los datos que se eligen en Preferencias
         this._settings = ext.getSettings();
@@ -145,12 +149,13 @@ class TermicaButton extends PanelMenu.Button {
                     style_class: 'termica-panel-short'}));
             }
             const label = new St.Label({text: '…', y_align: Clutter.ActorAlign.CENTER,
-                style_class: 'termica-panel-label'});
+                style_class: m.rate ? 'termica-panel-label termica-panel-rate' : 'termica-panel-label'});
             item.add_child(label);
             this._panelBox.add_child(item);
             this._panelItems.push({metric: m, label});
         }
         this._needsNvidia = chosen.some(m => !m.light);
+        this._needsService = chosen.some(m => !m.local);
         this._refreshPanel(true);
     }
 
@@ -374,10 +379,14 @@ class TermicaButton extends PanelMenu.Button {
             return;  // con el menú abierto la barra se actualiza con los datos completos
         if (this._panelItems.length === 0)
             return;
+        const local = this._sys.sample();
+        if (!this._needsService) {
+            this._updatePanel(local);
+            return;
+        }
         this._call(this._needsNvidia ? 'GetStatus' : 'GetTemps', null, (json, err) => {
-            if (err || !json)
-                return;
-            this._updatePanel(JSON.parse(json));
+            // without the service, local metrics still update and the rest show "—"
+            this._updatePanel(err || !json ? local : {...JSON.parse(json), ...local});
         });
     }
 
@@ -420,7 +429,7 @@ class TermicaButton extends PanelMenu.Button {
                 return;
             const s = this._status = JSON.parse(json);
             const c = this.cards;
-            this._updatePanel(s);
+            this._updatePanel({...s, ...this._sys.sample()});
 
             c.cpu.set(`${s.cpu_temp ?? '—'}°`, `${s.pl1}/${s.pl2} W · turbo ${s.turbo ? tr("yes") : tr("no")}`,
                 {temp: s.cpu_temp});

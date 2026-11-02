@@ -24,3 +24,5 @@
 .termica-panel { spacing: 10px; }
 .termica-panel-item { spacing: 3px; }
 .termica-panel-short { font-size: 8pt; color: rgba(255,255,255,0.7); padding-left: 1px; }
+/* fixed width so speed changes do not shift the top bar */
+.termica-panel-rate { min-width: 4.4em; }

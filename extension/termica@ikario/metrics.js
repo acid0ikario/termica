@@ -1,7 +1,9 @@
 import {tr} from './i18n.js';
+import {formatRate} from './sysstats.js';
 // Datos que se pueden mostrar en la barra superior.
 // light: se obtiene sin despertar la GPU. short: nombre corto opcional.
 // pair: comparte icono con otro dato, así que siempre lleva su nombre corto.
+// local: se lee de /proc en la propia extensión, sin el servicio.
 export const METRICS = [
     {id: 'profile', get title() { return tr("Active profile"); }, icon: 'profile', short: '', light: true, sample: tr("Quiet")},
     {id: 'cpu-temp', get title() { return tr("CPU temperature"); }, icon: 'cpu', short: 'CPU', light: true, temp: true, sample: '64°'},
@@ -14,9 +16,13 @@ export const METRICS = [
     {id: 'gpu-fan-pct', get title() { return tr("Fan 2 (GPU), %"); }, icon: 'fan', short: '2', pair: true, light: true, sample: '50%'},
     {id: 'gpu-clock', get title() { return tr("GPU core clock"); }, icon: 'speed', short: 'GPU', sample: '795 MHz'},
     {id: 'gpu-mem-clock', get title() { return tr("GPU memory clock"); }, icon: 'wave', short: 'MEM', sample: '5501 MHz'},
-    {id: 'gpu-util', get title() { return tr("GPU utilization"); }, icon: 'activity', short: 'GPU', sample: '12%'},
+    {id: 'gpu-util', get title() { return tr("GPU utilization"); }, icon: 'activity', short: 'GPU', pair: true, sample: '12%'},
     {id: 'vram', get title() { return tr("GPU memory used (VRAM)"); }, icon: 'vram', short: 'VRAM', sample: '1.2 GB'},
-    {id: 'ram', get title() { return tr("RAM used"); }, icon: 'ram', short: 'RAM', light: true, sample: '7.4 GB'},
+    {id: 'cpu-usage', get title() { return tr("CPU usage"); }, icon: 'activity', short: 'CPU', pair: true, light: true, local: true, sample: '8%'},
+    {id: 'ram', get title() { return tr("RAM used"); }, icon: 'ram', short: 'RAM', light: true, local: true, sample: '7.4 GB'},
+    {id: 'swap', get title() { return tr("Swap used"); }, icon: 'swap', short: 'SWAP', light: true, local: true, sample: '0.3 GB'},
+    {id: 'net-down', get title() { return tr("Download speed"); }, icon: 'download', short: 'NET', light: true, local: true, rate: true, sample: '2.4 MB/s'},
+    {id: 'net-up', get title() { return tr("Upload speed"); }, icon: 'upload', short: 'NET', light: true, local: true, rate: true, sample: '120 kB/s'},
 ];
 
 export const DEFAULT_ITEMS = ['cpu-temp', 'gpu-temp'];
@@ -41,7 +47,11 @@ export function formatMetric(id, s) {
     case 'gpu-mem-clock': return nv(s.gpu_mem_clock, x => `${x} MHz`);
     case 'gpu-util': return nv(s.gpu_util, x => `${x}%`);
     case 'vram': return nv(s.vram_used, x => `${(x / 1024).toFixed(1)} GB`);
+    case 'cpu-usage': return v(s.cpu_usage, x => `${x}%`);
     case 'ram': return v(s.ram_used, x => `${x.toFixed(1)} GB`);
+    case 'swap': return v(s.swap_used, x => `${x.toFixed(1)} GB`);
+    case 'net-down': return v(s.net_down, formatRate);
+    case 'net-up': return v(s.net_up, formatRate);
     }
     return NV_OFF;
 }
